@@ -168,8 +168,8 @@ function generateRandomRating() {
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = process.env.PORT || 3000;
-// The server calls its own REST API to keep the session manager in sync
-const selfUrl = `http://127.0.0.1:${port}`;
+// DISABLED with the REST session sync below (kept for reference)
+// const selfUrl = `http://127.0.0.1:${port}`;
 
 installProcessHandlers();
 
@@ -270,6 +270,14 @@ app.prepare().then(() => {
   // Store for session management (simplified for server.js)
   let sessionManager = null;
   let currentSession = null;
+  // Read-only view of the live queue for GET /api/queue (same process)
+  globalThis.__karaokeQueueSnapshot = () =>
+    currentSession && {
+      queue: currentSession.queue,
+      currentSong: currentSession.currentSong || null,
+      playbackState: currentSession.playbackState || null,
+      session: { id: currentSession.id, name: currentSession.name },
+    };
   const connectedUsers = new Map();
 
   // Periodic cleanup of stale connections
@@ -584,51 +592,53 @@ app.prepare().then(() => {
         console.log("Auto-started song:", queueItem.mediaItem.title);
       }
 
-      // SYNC WITH SESSION MANAGER: Also add to the API session manager
-      try {
-        const response = await fetch(`${selfUrl}/api/queue`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "add-song",
-            mediaItem: mediaItem,
-            userId: user.id,
-            userName: user.name,
-            position: position,
-          }),
-        });
-
-        if (!response.ok) {
-          console.log(
-            "Failed to sync with session manager, creating session..."
-          );
-          // Try to create session first
-          await fetch(`${selfUrl}/api/queue`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "create-session",
-              userName: user.name,
-            }),
-          });
-
-          // Then try adding the song again
-          await fetch(`${selfUrl}/api/queue`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "add-song",
-              mediaItem: mediaItem,
-              userId: user.id,
-              userName: user.name,
-              position: position,
-            }),
-          });
-        }
-        console.log("Successfully synced with session manager");
-      } catch (error) {
-        console.log("Failed to sync with session manager:", error.message);
-      }
+      // DISABLED: the REST session store (src/services/session) never shared
+      // state with this queue, so every sync failed. Kept for reference.
+      // // SYNC WITH SESSION MANAGER: Also add to the API session manager
+      // try {
+      //   const response = await fetch(`${selfUrl}/api/queue`, {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({
+      //       action: "add-song",
+      //       mediaItem: mediaItem,
+      //       userId: user.id,
+      //       userName: user.name,
+      //       position: position,
+      //     }),
+      //   });
+      //
+      //   if (!response.ok) {
+      //     console.log(
+      //       "Failed to sync with session manager, creating session..."
+      //     );
+      //     // Try to create session first
+      //     await fetch(`${selfUrl}/api/queue`, {
+      //       method: "POST",
+      //       headers: { "Content-Type": "application/json" },
+      //       body: JSON.stringify({
+      //         action: "create-session",
+      //         userName: user.name,
+      //       }),
+      //     });
+      //
+      //     // Then try adding the song again
+      //     await fetch(`${selfUrl}/api/queue`, {
+      //       method: "POST",
+      //       headers: { "Content-Type": "application/json" },
+      //       body: JSON.stringify({
+      //         action: "add-song",
+      //         mediaItem: mediaItem,
+      //         userId: user.id,
+      //         userName: user.name,
+      //         position: position,
+      //       }),
+      //     });
+      //   }
+      //   console.log("Successfully synced with session manager");
+      // } catch (error) {
+      //   console.log("Failed to sync with session manager:", error.message);
+      // }
 
       console.debug("Broadcasting queue update to session:", currentSession.id);
       console.debug("Queue length:", currentSession.queue.length);

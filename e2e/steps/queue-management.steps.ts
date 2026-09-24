@@ -1,5 +1,6 @@
 import { expect, Page } from "@playwright/test";
 import { Given, When, Then } from "./fixtures";
+import { clearQueue } from "./queue-cleanup";
 
 async function addSongToQueue(page: Page) {
   // Navigate to search, find first artist, select them, add first song
@@ -39,16 +40,18 @@ Given(
 );
 
 Given("the queue is cleared", async ({ page }) => {
-  // Clear all songs from the queue via API
-  const response = await page.request.get("http://localhost:3000/api/queue");
-  const data = await response.json();
-  if (data.queue) {
-    for (const item of data.queue) {
-      await page.request.delete(
-        `http://localhost:3000/api/queue?queueItemId=${item.id}&userName=TestUser`
-      );
-    }
-  }
+  // DISABLED (kept for reference): the REST queue API is read-only now.
+  //   // Clear all songs from the queue via API
+  //   const response = await page.request.get("http://localhost:3000/api/queue");
+  //   const data = await response.json();
+  //   if (data.queue) {
+  //     for (const item of data.queue) {
+  //       await page.request.delete(
+  //         `http://localhost:3000/api/queue?queueItemId=${item.id}&userName=TestUser`
+  //       );
+  //     }
+  //   }
+  await clearQueue(page);
   await page.waitForTimeout(500);
 });
 

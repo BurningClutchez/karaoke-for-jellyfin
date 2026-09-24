@@ -105,19 +105,18 @@ Key socket events: `join-session`, `add-song`, `remove-song`, `playback-control`
 
 ## Queue API (REST)
 
-- `GET /api/queue` — current queue, playback state, session info
-- `POST /api/queue` — add song (body: `{mediaItem, userId}`)
-- `DELETE /api/queue?queueItemId=X&userId=Y` — remove song
-- `PUT /api/queue` — actions like skip: `{action: "skip", userId: "..."}`
+- `GET /api/queue` — read-only view of the live queue in `server.js`: `{success, data: {queue, currentSong, playbackState, session}}` (404 before anyone joins)
+- `POST` / `PUT` / `DELETE /api/queue` — return 410. Change the queue over Socket.IO (`add-song`, `remove-song`, `skip-song`)
+- The old REST session store (`src/services/session/`), its handlers (`src/app/api/queue/handlers/`) and `src/lib/websocket/` are commented out, kept for reference. They never shared state with the socket queue
 
 ## E2E Testing Patterns
 
 ### Multi-user tests
 
-- Use `clearQueue()` at the start of each scenario to prevent state bleed between tests
+- Use `clearQueue()` from `e2e/steps/queue-cleanup.ts` at the start of each scenario to prevent state bleed between tests (it removes songs over Socket.IO)
 - Song additions use artist-item → add-song-button pattern (not search queries)
 - `ConfirmationDialog` has a 2s auto-close but tests dismiss it explicitly via close button
-- Song transitions in headless use API skip (`PUT /api/queue {action: "skip"}`) — audio `ended` events don't fire reliably in headless Chromium
+- Song transitions in headless use `skipCurrentSong()` (a `skip-song` socket event) — audio `ended` events don't fire reliably in headless Chromium
 - Queue assertions use `.or()` pattern: `queueItem.or(nowPlaying)` since first song auto-plays
 
 ### Full-playback tests (headed)

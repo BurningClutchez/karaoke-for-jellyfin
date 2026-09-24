@@ -1,7 +1,8 @@
 // WebSocket API route for Next.js
 import { NextRequest } from "next/server";
-import { Server as HTTPServer } from "http";
-import { initializeWebSocket } from "@/lib/websocket";
+// DISABLED with src/lib/websocket (never called here; kept for reference)
+// import { Server as HTTPServer } from "http";
+// import { initializeWebSocket } from "@/lib/websocket";
 
 export async function GET(request: NextRequest) {
   // In Next.js, we need to handle WebSocket upgrade differently

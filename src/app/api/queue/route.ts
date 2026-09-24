@@ -1,19 +1,47 @@
-// API route for queue management — thin dispatcher to handler modules
-import { NextRequest, NextResponse } from "next/server";
-import { handleGet, handlePost, handleDelete, handlePut } from "./handlers";
+// Read-only view of the live queue. The queue itself lives in server.js and is
+// changed over Socket.IO (add-song, remove-song, skip-song, ...). The old REST
+// handlers in ./handlers wrote to a separate store and are disabled.
+import { NextResponse } from "next/server";
+import { createSuccessResponse, createErrorResponse } from "@/lib/utils";
+import type { PlaybackState, QueueItem } from "@/types";
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  return handleGet(request);
+export interface QueueSnapshot {
+  queue: QueueItem[];
+  currentSong: QueueItem | null;
+  playbackState: PlaybackState | null;
+  session: { id: string; name: string };
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  return handlePost(request);
+type SnapshotReader = () => QueueSnapshot | null;
+
+/** server.js publishes this; it is absent when Next.js runs without it */
+function readSnapshot(): QueueSnapshot | null {
+  const reader = (globalThis as { __karaokeQueueSnapshot?: SnapshotReader })
+    .__karaokeQueueSnapshot;
+  return reader ? reader() : null;
 }
 
-export async function DELETE(request: NextRequest): Promise<NextResponse> {
-  return handleDelete(request);
+export async function GET(): Promise<NextResponse> {
+  const snapshot = readSnapshot();
+  if (!snapshot) {
+    return NextResponse.json(
+      createErrorResponse("SESSION_NOT_FOUND", "No active karaoke session"),
+      { status: 404 }
+    );
+  }
+  return NextResponse.json(createSuccessResponse(snapshot));
 }
 
-export async function PUT(request: NextRequest): Promise<NextResponse> {
-  return handlePut(request);
+function readOnly(): NextResponse {
+  return NextResponse.json(
+    createErrorResponse(
+      "QUEUE_READ_ONLY",
+      "The queue is managed over Socket.IO by server.js; /api/queue is read-only"
+    ),
+    { status: 410 }
+  );
 }
+
+export const POST = readOnly;
+export const PUT = readOnly;
+export const DELETE = readOnly;
