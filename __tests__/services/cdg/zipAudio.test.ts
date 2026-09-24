@@ -33,9 +33,12 @@ describe("zipped karaoke audio", () => {
   it("asks the plugin to prepare the song", async () => {
     mockFetch.mockResolvedValue(prepared(true));
     await expect(isZipBacked(ctx, "abc")).resolves.toBe(true);
-    expect(mockFetch).toHaveBeenCalledWith("http://jf/Karaoke/Prepare/abc", {
-      headers: auth,
-    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://jf/Karaoke/Prepare/abc",
+      expect.objectContaining({
+        headers: auth,
+      })
+    );
   });
 
   it("caches answers for ten minutes", async () => {

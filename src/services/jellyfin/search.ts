@@ -1,9 +1,9 @@
-// Search functionality: media search, artist-based search, relevance sorting
+// Search: media search, artist-based search, relevance sorting
 import { MediaItem } from "@/types";
 import type { JellyfinContext, JellyfinSearchResponse } from "./types";
 import { transformMediaItems } from "./transforms";
 import { fetchAllAudioItemsBatched } from "./batch";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /** Compute a relevance score for a media item (lower = more relevant) */
 function getRelevanceScore(item: MediaItem, queryLower: string): number {
@@ -82,7 +82,7 @@ export async function performSearch(
 
     console.log(`Performing ${searchField} search for: "${query}"`);
 
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
@@ -98,7 +98,6 @@ export async function performSearch(
 
     const data: JellyfinSearchResponse = await response.json();
     const items = transformMediaItems(data.Items || [], ctx.baseUrl);
-
     const queryLower = query.toLowerCase();
     const filtered = items.filter(item => {
       if (searchField === "Name") {

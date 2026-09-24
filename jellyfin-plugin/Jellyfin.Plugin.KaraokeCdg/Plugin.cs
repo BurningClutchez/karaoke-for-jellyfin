@@ -2,6 +2,7 @@ using Jellyfin.Plugin.KaraokeCdg.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.KaraokeCdg;
 
@@ -15,16 +16,22 @@ public class Plugin : BasePlugin<PluginConfiguration>
     /// </summary>
     /// <param name="applicationPaths">Jellyfin application paths.</param>
     /// <param name="xmlSerializer">Serializer for the plugin configuration.</param>
-    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
+    /// <param name="logger">Logger.</param>
+    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, ILogger<Plugin> logger)
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+        _logger = logger;
+        LogSettingsWarnings(Configuration);
+        ConfigurationChanged += (_, config) => LogSettingsWarnings((PluginConfiguration)config);
     }
 
     /// <summary>
     /// Gets the running plugin instance.
     /// </summary>
     public static Plugin? Instance { get; private set; }
+
+    private readonly ILogger<Plugin> _logger;
 
     /// <inheritdoc />
     public override string Name => "Karaoke CDG";
@@ -35,4 +42,12 @@ public class Plugin : BasePlugin<PluginConfiguration>
     /// <inheritdoc />
     public override string Description =>
         "Serves .cdg karaoke graphics for audio files, raw or pre-rendered to video, for Karaoke for Jellyfin.";
+
+    private void LogSettingsWarnings(PluginConfiguration config)
+    {
+        foreach (var warning in SettingsCheck.Warnings(config))
+        {
+            _logger.LogWarning("Karaoke CDG settings: {Warning}", warning);
+        }
+    }
 }

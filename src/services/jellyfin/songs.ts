@@ -6,7 +6,7 @@ import type {
   JellyfinSearchResponse,
 } from "./types";
 import { transformMediaItems, transformMediaItem } from "./transforms";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
  * Get all songs by a specific artist ID
@@ -30,7 +30,7 @@ export async function getSongsByArtistId(
       sortOrder: "Ascending",
     });
 
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
@@ -74,7 +74,7 @@ export async function getAllAudioItems(
 
     const url = `${ctx.baseUrl}/Items?${searchParams.toString()}`;
 
-    const response = await fetch(url, {
+    const response = await jellyfinFetch(url, {
       headers: {
         Authorization: mediaBrowserToken(ctx.apiKey),
         "Content-Type": "application/json",
@@ -101,7 +101,7 @@ export async function getMediaMetadata(
   itemId: string
 ): Promise<MediaItem | null> {
   try {
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items/${itemId}?userId=${ctx.userId}&fields=Artists,Album,RunTimeTicks`,
       {
         headers: {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { check, loadSettings } from "../../scripts/check-jellyfin";
+import { check, loadSettings } from "../../server/jellyfin-check";
 
 const settings = {
   JELLYFIN_SERVER_URL: "http://jf/",

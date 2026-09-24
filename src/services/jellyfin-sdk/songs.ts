@@ -1,7 +1,7 @@
 import { MediaItem } from "@/types";
 import { JellyfinContext, SongResult } from "./types";
 import { transformMediaItems } from "./transformers";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 export async function getSongsByArtistId(
   ctx: JellyfinContext,
@@ -27,7 +27,7 @@ export async function getSongsByArtistId(
   });
 
   const itemsUrl = `${ctx.baseUrl}/Items?${params}`;
-  const response = await fetch(itemsUrl, {
+  const response = await jellyfinFetch(itemsUrl, {
     method: "GET",
     headers: {
       Authorization: mediaBrowserToken(ctx.apiKey),
@@ -76,7 +76,7 @@ export async function searchByTitle(
   });
 
   const itemsUrl = `${ctx.baseUrl}/Items?${params}`;
-  const response = await fetch(itemsUrl, {
+  const response = await jellyfinFetch(itemsUrl, {
     method: "GET",
     headers: {
       Authorization: mediaBrowserToken(ctx.apiKey),
@@ -125,7 +125,7 @@ export async function getAllAudioItems(
   });
 
   const itemsUrl = `${ctx.baseUrl}/Items?${params}`;
-  const response = await fetch(itemsUrl, {
+  const response = await jellyfinFetch(itemsUrl, {
     method: "GET",
     headers: {
       Authorization: mediaBrowserToken(ctx.apiKey),

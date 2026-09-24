@@ -92,9 +92,15 @@ describe("GET /api/cdg/[itemId]/video", () => {
     expect(response.headers.get("content-type")).toBe("video/mp4");
     expect(response.headers.get("content-range")).toBe("bytes 0-2/3");
     expect(response.headers.get("x-internal")).toBeNull();
-    expect(mockFetch).toHaveBeenCalledWith("http://jf/Karaoke/Video/abc", {
-      headers: { Authorization: 'MediaBrowser Token="key"', Range: "bytes=0-" },
-    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://jf/Karaoke/Video/abc",
+      expect.objectContaining({
+        headers: {
+          Authorization: 'MediaBrowser Token="key"',
+          Range: "bytes=0-",
+        },
+      })
+    );
   });
 
   it("forwards only the webm format to the plugin", async () => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
 import { authHeaders, isValidItemId, pluginUrl } from "@/services/cdg/source";
+import { jellyfinFetch } from "@/lib/jellyfinFetch";
 
 const PASSTHROUGH_HEADERS = [
   "content-type",
@@ -32,7 +33,7 @@ export async function GET(
     // Only forward known formats; the plugin defaults to H.264 MP4
     const webm = request.nextUrl.searchParams.get("format") === "webm";
     const url = pluginUrl(ctx, "Video", itemId) + (webm ? "?format=webm" : "");
-    const response = await fetch(url, { headers });
+    const response = await jellyfinFetch(url, { headers });
     if (!response.ok || !response.body) {
       return NextResponse.json(
         { error: "No CDG video available" },

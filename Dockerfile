@@ -42,8 +42,9 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Custom server
+# Custom server and the modules it requires
 COPY --from=builder --chown=nextjs:nodejs /app/server.js ./
+COPY --from=builder --chown=nextjs:nodejs /app/server ./server
 
 # Production-only node_modules (socket.io, jellyfin sdk, etc. — no dev deps)
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
@@ -57,5 +58,9 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Liveness only: stays healthy while Jellyfin is down (see /api/health)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s \
+  CMD wget -qO /dev/null http://127.0.0.1:${PORT}/api/health || exit 1
 
 CMD ["node", "server.js"]

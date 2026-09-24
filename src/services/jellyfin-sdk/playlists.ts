@@ -3,7 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { MediaItem, Playlist } from "@/types";
 import { JellyfinContext } from "./types";
 import { transformMediaItems, transformPlaylists } from "./transformers";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
  * Get all music playlists from Jellyfin
@@ -27,7 +27,7 @@ export async function getPlaylists(
   });
 
   const playlistsUrl = `${ctx.baseUrl}/Items?${params}`;
-  const response = await fetch(playlistsUrl, {
+  const response = await jellyfinFetch(playlistsUrl, {
     method: "GET",
     headers: {
       Authorization: mediaBrowserToken(ctx.apiKey),
@@ -70,7 +70,7 @@ export async function getPlaylistItems(
   });
 
   const playlistItemsUrl = `${ctx.baseUrl}/Playlists/${playlistId}/Items?${params}`;
-  const response = await fetch(playlistItemsUrl, {
+  const response = await jellyfinFetch(playlistItemsUrl, {
     method: "GET",
     headers: {
       Authorization: mediaBrowserToken(ctx.apiKey),

@@ -1,8 +1,10 @@
 // Debug endpoint to test Jellyfin lyrics API
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
+import { debugRouteNotFound, debugRoutesEnabled } from "@/lib/debugRoutes";
 
 export async function GET(request: NextRequest) {
+  if (!debugRoutesEnabled()) return debugRouteNotFound();
   try {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get("itemId");

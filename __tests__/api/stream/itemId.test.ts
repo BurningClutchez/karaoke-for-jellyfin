@@ -60,13 +60,13 @@ describe("GET /api/stream/[itemId]", () => {
     expect(mockGetDirectStreamUrl).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledWith(
       "http://jellyfin:8096/Karaoke/Audio/zip1",
-      {
+      expect.objectContaining({
         headers: {
           Authorization: 'MediaBrowser Token="k"',
           "User-Agent": "Karaoke-For-Jellyfin/1.0",
           Range: "bytes=0-9",
         },
-      }
+      })
     );
   });
 

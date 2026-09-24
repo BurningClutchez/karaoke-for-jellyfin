@@ -6,7 +6,7 @@ import type {
   JellyfinSearchResponse,
 } from "./types";
 import { transformAlbums, transformMediaItems } from "./transforms";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
  * Search for albums by name
@@ -38,7 +38,7 @@ export async function searchAlbums(
       `Album search URL: ${ctx.baseUrl}/Items?${searchParams.toString()}`
     );
 
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
@@ -95,7 +95,7 @@ export async function getSongsByAlbumId(
       `Songs by album URL: ${ctx.baseUrl}/Items?${searchParams.toString()}`
     );
 
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {

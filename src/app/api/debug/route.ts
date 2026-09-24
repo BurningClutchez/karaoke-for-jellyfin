@@ -1,9 +1,11 @@
 // Debug API route to check Jellyfin libraries and connection
 import { NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { debugRouteNotFound, debugRoutesEnabled } from "@/lib/debugRoutes";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 export async function GET() {
+  if (!debugRoutesEnabled()) return debugRouteNotFound();
   try {
     const jellyfinService = getJellyfinService();
 
@@ -20,7 +22,7 @@ export async function GET() {
     const libraries = await jellyfinService.getLibraries();
 
     // Try to get items without the Audio filter to see what's available
-    const allItemsResponse = await fetch(
+    const allItemsResponse = await jellyfinFetch(
       `${process.env.JELLYFIN_SERVER_URL}/Items?recursive=true&limit=10&userId=${(jellyfinService as any).userId}&fields=Type,MediaType`,
       {
         headers: {

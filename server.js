@@ -6,6 +6,15 @@ const { Server } = require("socket.io");
 const fetch = require("node-fetch");
 const { handleSendReaction } = require("./server/reactions");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
+const { guardSocketHandlers } = require("./server/socket-guard");
+const {
+  installProcessHandlers,
+  installGracefulShutdown,
+} = require("./server/process-safety");
+const {
+  check: checkJellyfin,
+  loadSettings: loadJellyfinSettings,
+} = require("./server/jellyfin-check");
 const {
   prerenderCdgVideo,
   prepareKaraokeSong,
@@ -155,6 +164,10 @@ function generateRandomRating() {
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = process.env.PORT || 3000;
+// The server calls its own REST API to keep the session manager in sync
+const selfUrl = `http://127.0.0.1:${port}`;
+
+installProcessHandlers();
 
 // When using middleware `hostname` and `port` must be provided below
 const app = next({ dev, hostname, port });
@@ -164,7 +177,11 @@ app.prepare().then(() => {
   const server = createServer(async (req, res) => {
     try {
       // Handle debug endpoint before Next.js
-      if (req.url === "/debug/websocket-state" && req.method === "GET") {
+      if (
+        req.url === "/debug/websocket-state" &&
+        req.method === "GET" &&
+        (dev || process.env.ENABLE_DEBUG_ROUTES === "true")
+      ) {
         res.writeHead(200, { "Content-Type": "application/json" });
 
         // Get unique users by name for display
@@ -289,6 +306,7 @@ app.prepare().then(() => {
 
   // Basic WebSocket connection handling with session management
   io.on("connection", socket => {
+    guardSocketHandlers(socket);
     console.log("Client connected:", socket.id);
     let currentUserId = null;
     let currentSessionId = null;
@@ -562,7 +580,7 @@ app.prepare().then(() => {
 
       // SYNC WITH SESSION MANAGER: Also add to the API session manager
       try {
-        const response = await fetch("http://localhost:3000/api/queue", {
+        const response = await fetch(`${selfUrl}/api/queue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -579,7 +597,7 @@ app.prepare().then(() => {
             "Failed to sync with session manager, creating session..."
           );
           // Try to create session first
-          await fetch("http://localhost:3000/api/queue", {
+          await fetch(`${selfUrl}/api/queue`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -589,7 +607,7 @@ app.prepare().then(() => {
           });
 
           // Then try adding the song again
-          await fetch("http://localhost:3000/api/queue", {
+          await fetch(`${selfUrl}/api/queue`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1119,5 +1137,18 @@ app.prepare().then(() => {
     .listen(port, () => {
       console.log(`> Ready on http://${hostname}:${port}`);
       console.log(`> WebSocket server running on port ${port}`);
+
+      // Say clearly at startup if Jellyfin isn't set up right (keeps running)
+      checkJellyfin(loadJellyfinSettings(process.env, ".env.local"))
+        .then(problems =>
+          problems.length === 0
+            ? console.log("[startup] Jellyfin connection OK")
+            : problems.forEach(problem => console.error(`[startup] ${problem}`))
+        )
+        .catch(error =>
+          console.error("[startup] Jellyfin check failed:", error.message)
+        );
     });
+
+  installGracefulShutdown({ server, io });
 });

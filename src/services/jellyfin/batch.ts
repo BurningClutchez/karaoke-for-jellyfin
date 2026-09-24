@@ -2,7 +2,7 @@
 import { MediaItem } from "@/types";
 import type { JellyfinContext, JellyfinSearchResponse } from "./types";
 import { transformMediaItems } from "./transforms";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 const BATCH_SIZE = 1000;
 const MAX_ITEMS = 50000;
@@ -30,7 +30,7 @@ export async function fetchAllAudioItemsBatched(
       sortOrder: "Ascending",
     });
 
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {

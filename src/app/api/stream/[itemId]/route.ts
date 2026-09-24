@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
 import { getZipAudioSource } from "@/services/cdg/zipAudio";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -42,7 +42,7 @@ export async function GET(
       fetchHeaders["Range"] = range;
     }
 
-    const response = await fetch(streamUrl, { headers: fetchHeaders });
+    const response = await jellyfinFetch(streamUrl, { headers: fetchHeaders });
 
     if (!response.ok && response.status !== 206) {
       return NextResponse.json(

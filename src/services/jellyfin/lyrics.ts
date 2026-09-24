@@ -1,6 +1,6 @@
 // Lyrics fetching from Jellyfin
 import type { JellyfinContext } from "./types";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 interface MediaStream {
   Type: string;
@@ -26,7 +26,7 @@ export async function getLyrics(
 ): Promise<LyricsResult> {
   try {
     const lyricsUrl = `${ctx.baseUrl}/Audio/${itemId}/Lyrics`;
-    const response = await fetch(lyricsUrl, {
+    const response = await jellyfinFetch(lyricsUrl, {
       headers: {
         Authorization: mediaBrowserToken(ctx.apiKey),
         "Content-Type": "application/json",
@@ -57,7 +57,7 @@ async function tryEmbeddedLyrics(
   ctx: JellyfinContext,
   itemId: string
 ): Promise<LyricsResult> {
-  const itemResponse = await fetch(
+  const itemResponse = await jellyfinFetch(
     `${ctx.baseUrl}/Items/${itemId}?userId=${ctx.userId}&fields=MediaStreams,MediaSources`,
     {
       headers: {
@@ -86,7 +86,7 @@ async function tryEmbeddedLyrics(
   const lyricsStream = lyricsStreams[0];
   const subtitleUrl = `${ctx.baseUrl}/Videos/${itemId}/${lyricsStream.Index}/Subtitles/0/Stream.lrc`;
 
-  const subtitleResponse = await fetch(subtitleUrl, {
+  const subtitleResponse = await jellyfinFetch(subtitleUrl, {
     headers: { Authorization: mediaBrowserToken(ctx.apiKey) },
   });
 

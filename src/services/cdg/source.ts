@@ -2,6 +2,7 @@
 import { readFile } from "fs/promises";
 import type { JellyfinContext } from "@/services/jellyfin/types";
 import { cdgCandidates, getCdgPathConfig, mapToLocalPath } from "./paths";
+import { jellyfinFetch } from "@/lib/jellyfinFetch";
 
 export type CdgSourceKind = "local" | "plugin";
 
@@ -37,7 +38,7 @@ export async function getItemPath(
   ctx: JellyfinContext,
   itemId: string
 ): Promise<string | null> {
-  const response = await fetch(
+  const response = await jellyfinFetch(
     `${ctx.baseUrl}/Items/${itemId}?userId=${ctx.userId}&fields=Path`,
     { headers: authHeaders(ctx) }
   );
@@ -76,7 +77,7 @@ export async function fetchPluginCdg(
   ctx: JellyfinContext,
   itemId: string
 ): Promise<Uint8Array | null> {
-  const response = await fetch(pluginUrl(ctx, "Cdg", itemId), {
+  const response = await jellyfinFetch(pluginUrl(ctx, "Cdg", itemId), {
     headers: authHeaders(ctx),
   });
   if (!response.ok) return null;

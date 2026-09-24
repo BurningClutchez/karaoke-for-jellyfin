@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Mime;
+using Jellyfin.Plugin.KaraokeCdg.Configuration;
 using Jellyfin.Plugin.KaraokeCdg.Zips;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.MediaEncoding;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +16,21 @@ namespace Jellyfin.Plugin.KaraokeCdg.Api;
 /// <param name="ZipBacked">True if the item is a placeholder whose song is in a zip.</param>
 /// <param name="HasCdg">True if the item has CD+G graphics.</param>
 public sealed record KaraokePrepareResult(bool ZipBacked, bool HasCdg);
+
+/// <summary>
+/// Plugin status, for health checks.
+/// </summary>
+/// <param name="Version">Plugin version.</param>
+/// <param name="FfmpegFound">Whether Jellyfin's ffmpeg exists.</param>
+/// <param name="Placeholders">Number of zipped songs with placeholders.</param>
+/// <param name="ExtractedSongs">Number of zipped songs currently extracted.</param>
+/// <param name="SettingsWarnings">Problems found in the plugin settings.</param>
+public sealed record KaraokeStatus(
+    string Version,
+    bool FfmpegFound,
+    int Placeholders,
+    int ExtractedSongs,
+    IReadOnlyList<string> SettingsWarnings);
 
 /// <summary>
 /// CDG endpoints used by Karaoke for Jellyfin. Requires a Jellyfin API key or user token.
@@ -38,6 +55,9 @@ public class KaraokeCdgController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly CdgVideoRenderer _renderer;
     private readonly KaraokeSourceResolver _resolver;
+    private readonly PlaceholderIndex _placeholders;
+    private readonly ZipExtractionCache _extractionCache;
+    private readonly IMediaEncoder _mediaEncoder;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="KaraokeCdgController"/> class.
@@ -45,11 +65,44 @@ public class KaraokeCdgController : ControllerBase
     /// <param name="libraryManager">Library manager.</param>
     /// <param name="renderer">CDG video renderer.</param>
     /// <param name="resolver">Finds the files behind a karaoke song.</param>
-    public KaraokeCdgController(ILibraryManager libraryManager, CdgVideoRenderer renderer, KaraokeSourceResolver resolver)
+    /// <param name="placeholders">Zip placeholder index.</param>
+    /// <param name="extractionCache">Extraction cache.</param>
+    /// <param name="mediaEncoder">Provides the ffmpeg path.</param>
+    public KaraokeCdgController(
+        ILibraryManager libraryManager,
+        CdgVideoRenderer renderer,
+        KaraokeSourceResolver resolver,
+        PlaceholderIndex placeholders,
+        ZipExtractionCache extractionCache,
+        IMediaEncoder mediaEncoder)
     {
         _libraryManager = libraryManager;
         _renderer = renderer;
         _resolver = resolver;
+        _placeholders = placeholders;
+        _extractionCache = extractionCache;
+        _mediaEncoder = mediaEncoder;
+    }
+
+    /// <summary>
+    /// Gets the plugin's status, used by Karaoke for Jellyfin's health check.
+    /// </summary>
+    /// <response code="200">Status returned.</response>
+    /// <returns>The status.</returns>
+    [HttpGet("Status")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<KaraokeStatus> GetStatus()
+    {
+        var extracted = Directory.Exists(_extractionCache.Root)
+            ? Directory.EnumerateDirectories(_extractionCache.Root)
+                .Count(folder => ZipExtractionCache.IsCacheFolderName(Path.GetFileName(folder)))
+            : 0;
+        return new KaraokeStatus(
+            Plugin.Instance?.Version.ToString() ?? "unknown",
+            !string.IsNullOrEmpty(_mediaEncoder.EncoderPath) && System.IO.File.Exists(_mediaEncoder.EncoderPath),
+            _placeholders.All().Count(record => record.IsKaraoke),
+            extracted,
+            SettingsCheck.Warnings(Plugin.Instance?.Configuration));
     }
 
     /// <summary>

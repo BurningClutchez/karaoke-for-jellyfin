@@ -137,9 +137,25 @@ describe("GET /api/debug/jellyfin-lyrics", () => {
     process.env.NODE_ENV = originalNodeEnv;
   });
 
+  it("answers 404 in production unless debug routes are enabled", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const response = await GET(
+        new NextRequest(
+          "http://localhost:3000/api/debug/jellyfin-lyrics?itemId=x"
+        )
+      );
+      expect(response.status).toBe(404);
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
   it("excludes fullLyrics in production mode", async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
+    process.env.ENABLE_DEBUG_ROUTES = "true";
 
     mockAuthenticate.mockResolvedValue(true);
     mockGetLyrics.mockResolvedValue("Full lyrics content");
@@ -153,10 +169,10 @@ describe("GET /api/debug/jellyfin-lyrics", () => {
     const response = await GET(request);
     const json = await response.json();
 
+    process.env.NODE_ENV = originalNodeEnv;
+    delete process.env.ENABLE_DEBUG_ROUTES;
     expect(response.status).toBe(200);
     expect(json.fullLyrics).toBeNull();
-
-    process.env.NODE_ENV = originalNodeEnv;
   });
 
   it("returns 500 when an unexpected error occurs", async () => {

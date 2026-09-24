@@ -50,7 +50,9 @@ describe("CDG source lookup", () => {
     await expect(getItemPath(ctx, "abc")).resolves.toBe("/media/music/a.mp3");
     expect(mockFetch).toHaveBeenCalledWith(
       "http://jf/Items/abc?userId=user1&fields=Path",
-      { headers: { Authorization: 'MediaBrowser Token="key"' } }
+      expect.objectContaining({
+        headers: { Authorization: 'MediaBrowser Token="key"' },
+      })
     );
   });
 
@@ -84,9 +86,12 @@ describe("CDG source lookup", () => {
     const file = await getCdgFile(ctx, "abc");
 
     expect(file?.source).toBe("plugin");
-    expect(mockFetch).toHaveBeenLastCalledWith("http://jf/Karaoke/Cdg/abc", {
-      headers: { Authorization: 'MediaBrowser Token="key"' },
-    });
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      "http://jf/Karaoke/Cdg/abc",
+      expect.objectContaining({
+        headers: { Authorization: 'MediaBrowser Token="key"' },
+      })
+    );
   });
 
   it("skips the local lookup when no mount is configured", async () => {

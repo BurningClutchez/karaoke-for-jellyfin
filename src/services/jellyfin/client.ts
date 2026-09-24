@@ -1,6 +1,6 @@
 // Jellyfin connection, authentication, and health check
 import type { JellyfinContext } from "./types";
-import { mediaBrowserToken } from "@/lib/jellyfinAuth";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 interface JellyfinUser {
   Id: string;
@@ -30,7 +30,7 @@ export class JellyfinClient {
    */
   async authenticate(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/Users`, {
+      const response = await jellyfinFetch(`${this.baseUrl}/Users`, {
         headers: this.headers(),
       });
 
@@ -87,7 +87,7 @@ export class JellyfinClient {
    */
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/System/Info`, {
+      const response = await jellyfinFetch(`${this.baseUrl}/System/Info`, {
         headers: { Authorization: mediaBrowserToken(this.apiKey) },
       });
       return response.ok;
@@ -121,7 +121,7 @@ export class JellyfinClient {
     }
 
     try {
-      const response = await fetch(
+      const response = await jellyfinFetch(
         `${this.baseUrl}/Users/${this.userId}/Views`,
         { headers: this.headers() }
       );

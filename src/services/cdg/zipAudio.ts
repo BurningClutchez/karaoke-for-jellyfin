@@ -3,6 +3,7 @@
 import { getJellyfinService } from "@/services/jellyfin";
 import type { JellyfinContext } from "@/services/jellyfin/types";
 import { authHeaders, isValidItemId, pluginUrl } from "./source";
+import { jellyfinFetch } from "@/lib/jellyfinFetch";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const zipBackedCache = new Map<string, { zip: boolean; expires: number }>();
@@ -30,7 +31,7 @@ export async function isZipBacked(
   const cached = zipBackedCache.get(itemId);
   if (cached && cached.expires > now) return cached.zip;
 
-  const response = await fetch(pluginUrl(ctx, "Prepare", itemId), {
+  const response = await jellyfinFetch(pluginUrl(ctx, "Prepare", itemId), {
     headers: authHeaders(ctx),
   });
   if (!response.ok && response.status !== 404) {
