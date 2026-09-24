@@ -1,4 +1,7 @@
 // Custom server for Next.js with WebSocket support
+// First, so every later log line goes through it
+const { installLogger, logRequest } = require("./server/logger");
+installLogger();
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
@@ -175,6 +178,8 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
+    const startedAt = Date.now();
+    res.on("finish", () => logRequest(req, res, startedAt));
     try {
       // Handle debug endpoint before Next.js
       if (
@@ -390,12 +395,12 @@ app.prepare().then(() => {
     }
 
     socket.on("join-session", data => {
-      console.log("Client joining session:", data);
+      console.debug("Client joining session:", data);
       const { sessionId, userName } = data;
 
-      console.log("Joining socket to room:", sessionId);
+      console.debug("Joining socket to room:", sessionId);
       socket.join(sessionId);
-      console.log("Socket rooms after join:", Array.from(socket.rooms));
+      console.debug("Socket rooms after join:", Array.from(socket.rooms));
 
       // Create or join session
       if (!currentSession) {
@@ -482,7 +487,7 @@ app.prepare().then(() => {
     });
 
     socket.on("add-song", async data => {
-      console.log("Adding song:", data);
+      console.debug("Adding song:", data);
 
       // Get the user for this socket
       const user = connectedUsers.get(socket.id);
@@ -505,9 +510,9 @@ app.prepare().then(() => {
         return;
       }
 
-      console.log("Current session exists:", !!currentSession);
-      console.log("Current user ID:", user.id);
-      console.log("Session ID:", currentSession.id);
+      console.debug("Current session exists:", !!currentSession);
+      console.debug("Current user ID:", user.id);
+      console.debug("Session ID:", currentSession.id);
       console.log(
         "Connected users in session:",
         currentSession.connectedUsers?.length
@@ -624,12 +629,12 @@ app.prepare().then(() => {
         console.log("Failed to sync with session manager:", error.message);
       }
 
-      console.log("Broadcasting queue update to session:", currentSession.id);
-      console.log("Queue length:", currentSession.queue.length);
+      console.debug("Broadcasting queue update to session:", currentSession.id);
+      console.debug("Queue length:", currentSession.queue.length);
       console.log("Rooms for this socket:", Array.from(socket.rooms));
 
       // Broadcast queue update to ALL clients in the session room
-      console.log("Broadcasting to room:", currentSession.id);
+      console.debug("Broadcasting to room:", currentSession.id);
       io.to(currentSession.id).emit("queue-updated", currentSession.queue);
 
       // Also broadcast to main-session room as backup
@@ -639,7 +644,7 @@ app.prepare().then(() => {
     });
 
     socket.on("remove-song", data => {
-      console.log("Removing song:", data);
+      console.debug("Removing song:", data);
       if (!currentSession || !currentUserId) {
         socket.emit("error", {
           code: "NOT_IN_SESSION",
@@ -683,12 +688,12 @@ app.prepare().then(() => {
     });
 
     socket.on("playback-control", command => {
-      console.log("Playback control:", command);
+      console.debug("Playback control:", command);
 
       // Get the user for this socket
       const user = connectedUsers.get(socket.id);
-      console.log("Current user:", user?.name || "Unknown");
-      console.log("Current session exists:", !!currentSession);
+      console.debug("Current user:", user?.name || "Unknown");
+      console.debug("Current session exists:", !!currentSession);
 
       // Allow TV clients or users in session
       if (!user && !currentSession) {
@@ -876,7 +881,7 @@ app.prepare().then(() => {
             }
             break;
           case "lyrics-offset":
-            console.log("Processing lyrics-offset command:", command.value);
+            console.debug("Processing lyrics-offset command:", command.value);
             if (command.value !== undefined) {
               if (!currentSession.playbackState) {
                 currentSession.playbackState = {
