@@ -8,6 +8,7 @@ const next = require("next");
 const { Server } = require("socket.io");
 const fetch = require("node-fetch");
 const { handleSendReaction } = require("./server/reactions");
+const { handlePlaybackFailed } = require("./server/playback-failure");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
 const { guardSocketHandlers } = require("./server/socket-guard");
 const {
@@ -1106,6 +1107,10 @@ app.prepare().then(() => {
         user.lastSeen = new Date();
       }
     });
+
+    socket.on("playback-failed", data =>
+      handlePlaybackFailed(io, socket, data, currentSession)
+    );
 
     socket.on("send-reaction", data => {
       handleSendReaction(io, socket, data, connectedUsers, currentSession);

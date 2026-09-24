@@ -7,6 +7,7 @@ import {
   setupErrorHandler,
 } from "./socketHandlers";
 import { ConnectionSettersInput } from "./useSocketConnection";
+import { setupNoticeHandlers } from "./noticeHandlers";
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
 
@@ -76,6 +77,7 @@ export function createSocketListenerSetup(ctx: SetupContext) {
         setupSocketListeners,
       }
     );
+    setupNoticeHandlers(socketInstance, ctx.setters.setError);
   };
   return setupSocketListeners;
 }

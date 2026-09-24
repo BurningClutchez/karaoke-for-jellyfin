@@ -39,6 +39,10 @@ const VALIDATORS = {
       : "playback-control needs an action",
   "send-reaction": data =>
     isObject(data) ? null : "send-reaction needs a reaction",
+  "playback-failed": data =>
+    isObject(data) && isText(data.title, 500) && isText(data.reason, 500)
+      ? null
+      : "playback-failed needs a title and reason",
 };
 
 /** Returns an error message for a bad payload, or null when it's acceptable */

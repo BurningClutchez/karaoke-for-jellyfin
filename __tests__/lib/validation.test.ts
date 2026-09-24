@@ -258,6 +258,19 @@ describe("isValidUrl", () => {
 // ============================================================================
 
 describe("isValidMediaItem", () => {
+  it("accepts the app's own stream paths but not protocol-relative URLs", () => {
+    const item = makeValidMediaItem();
+    expect(isValidMediaItem({ ...item, streamUrl: "/api/stream/abc" })).toBe(
+      true
+    );
+    expect(isValidMediaItem({ ...item, streamUrl: "//evil.example/x" })).toBe(
+      false
+    );
+    expect(isValidMediaItem({ ...item, streamUrl: "api/stream/abc" })).toBe(
+      false
+    );
+  });
+
   it("should return true for a valid media item", () => {
     expect(isValidMediaItem(makeValidMediaItem())).toBe(true);
   });

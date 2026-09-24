@@ -26,6 +26,11 @@ services:
       # - CDG_JELLYFIN_ROOT=/media/music
       # Render plugin video when a song is queued (default: only in video mode)
       # - CDG_PRERENDER=true
+      # OPTIONAL logging: debug | info | warn | error, and text | json
+      # - LOG_LEVEL=info
+      # - LOG_FORMAT=text
+      # OPTIONAL: browse only this music library (default: all music libraries)
+      # - JELLYFIN_MUSIC_LIBRARY=Music
 
       # System Configuration
       - NODE_ENV=production

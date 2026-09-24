@@ -90,6 +90,15 @@ describe("SongDisplay", () => {
     );
   });
 
+  it("shows a badge when graphics were expected but failed", async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 502 });
+    renderSong("auto");
+    await waitFor(() =>
+      expect(screen.getByTestId("cdg-unavailable")).toBeInTheDocument()
+    );
+    expect(screen.getByTestId("lyrics-display")).toBeInTheDocument();
+  });
+
   it("returns to lyrics when the plugin video fails", () => {
     renderSong("video");
     const videoElement = screen.getByTestId("cdg-video");

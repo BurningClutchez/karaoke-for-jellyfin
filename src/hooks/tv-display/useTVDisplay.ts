@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useReactions } from "@/hooks/useReactions";
+import { usePlaybackFailure } from "./usePlaybackFailure";
 import { UseTVDisplayReturn } from "./types";
 import { useTransitionState } from "./useTransitionState";
 import { useAutoplay } from "./useAutoplay";
@@ -105,6 +106,11 @@ export function useTVDisplay(): UseTVDisplayReturn {
 
   // Floating reactions
   const { reactions } = useReactions(socket);
+  const handlePlaybackFailed = usePlaybackFailure(
+    socket,
+    currentSong,
+    skipSong
+  );
 
   return {
     isClient,
@@ -126,6 +132,7 @@ export function useTVDisplay(): UseTVDisplayReturn {
     handleEmergencyStop,
     handleSongEnded,
     handleTimeUpdate,
+    handlePlaybackFailed,
     skipSong,
     playbackControl,
     removeSong,

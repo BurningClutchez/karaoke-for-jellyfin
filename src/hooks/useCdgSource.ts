@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CdgMode } from "@/lib/config";
 import { isValidCdg } from "@/lib/cdg/decoder";
+import { reportClientError } from "@/lib/clientLog";
 
 export type CdgSource =
   | { kind: "loading" }
@@ -61,41 +62,73 @@ export function fallbackCdgSource(
   return { kind: "none" };
 }
 
-async function fetchCdg(
+interface CdgFetchResult {
+  data: Uint8Array | null;
+  /** Set when graphics were expected but couldn't be loaded (not for 404) */
+  problem: string | null;
+}
+
+/** Fetch the raw CDG file; a 404 simply means the song has no graphics */
+export async function fetchCdg(
   itemId: string,
-  signal: AbortSignal
-): Promise<Uint8Array | null> {
-  const response = await fetch(`/api/cdg/${encodeURIComponent(itemId)}`, {
-    signal,
-  });
-  if (!response.ok) return null;
-  return new Uint8Array(await response.arrayBuffer());
+  signal?: AbortSignal
+): Promise<CdgFetchResult> {
+  try {
+    const response = await fetch(`/api/cdg/${encodeURIComponent(itemId)}`, {
+      signal,
+    });
+    if (response.ok) {
+      return {
+        data: new Uint8Array(await response.arrayBuffer()),
+        problem: null,
+      };
+    }
+    return {
+      data: null,
+      problem: response.status === 404 ? null : `HTTP ${response.status}`,
+    };
+  } catch (error) {
+    return { data: null, problem: (error as Error).message || "network error" };
+  }
+}
+
+type SourceState = { key: string; source: CdgSource; problem: string | null };
+
+function reportProblem(itemId: string, problem: string) {
+  reportClientError("warn", `Karaoke graphics for ${itemId}: ${problem}`);
 }
 
 export function useCdgSource(itemId: string | undefined, mode: CdgMode) {
-  const [state, setState] = useState<{ key: string; source: CdgSource }>(
-    () => ({ key: `${itemId}:${mode}`, source: initialCdgSource(itemId, mode) })
-  );
   const key = `${itemId}:${mode}`;
-  const source =
-    state.key === key ? state.source : initialCdgSource(itemId, mode);
+  const [state, setState] = useState<SourceState>(() => ({
+    key,
+    source: initialCdgSource(itemId, mode),
+    problem: null,
+  }));
+  const current: SourceState =
+    state.key === key
+      ? state
+      : { key, source: initialCdgSource(itemId, mode), problem: null };
 
   useEffect(() => {
     if (initialCdgSource(itemId, mode).kind !== "loading" || !itemId) return;
 
     const controller = new AbortController();
-    fetchCdg(itemId, controller.signal)
-      .catch(() => null)
-      .then(data => {
-        if (controller.signal.aborted) return;
-        setState({ key, source: cdgSourceFromData(itemId, mode, data) });
-      });
+    fetchCdg(itemId, controller.signal).then(({ data, problem }) => {
+      if (controller.signal.aborted) return;
+      if (problem) reportProblem(itemId, problem);
+      setState({ key, source: cdgSourceFromData(itemId, mode, data), problem });
+    });
     return () => controller.abort();
   }, [itemId, mode, key]);
 
   const fallBack = useCallback(() => {
-    setState({ key, source: fallbackCdgSource(source, itemId || "", mode) });
-  }, [source, itemId, mode, key]);
+    const next = fallbackCdgSource(current.source, itemId || "", mode);
+    const problem =
+      next.kind === "none" ? `${current.source.kind} display failed` : null;
+    if (problem) reportProblem(itemId || "", problem);
+    setState({ key, source: next, problem });
+  }, [current.source, itemId, mode, key]);
 
-  return { source, fallBack };
+  return { source: current.source, problem: current.problem, fallBack };
 }

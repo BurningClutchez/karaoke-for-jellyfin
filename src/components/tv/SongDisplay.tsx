@@ -23,7 +23,7 @@ export function SongDisplay({
   cdgMode,
   audioRef,
 }: SongDisplayProps) {
-  const { source, fallBack } = useCdgSource(
+  const { source, problem, fallBack } = useCdgSource(
     audioRef ? song.mediaItem.jellyfinId : undefined,
     cdgMode
   );
@@ -40,10 +40,21 @@ export function SongDisplay({
   }
 
   return (
-    <LyricsDisplay
-      song={song}
-      playbackState={playbackState}
-      isConnected={isConnected}
-    />
+    <>
+      <LyricsDisplay
+        song={song}
+        playbackState={playbackState}
+        isConnected={isConnected}
+      />
+      {problem && (
+        <div
+          data-testid="cdg-unavailable"
+          title={problem}
+          className="absolute bottom-20 right-4 z-30 px-3 py-1 rounded-full text-xs bg-yellow-900/80 text-yellow-200"
+        >
+          Karaoke graphics unavailable
+        </div>
+      )}
+    </>
   );
 }

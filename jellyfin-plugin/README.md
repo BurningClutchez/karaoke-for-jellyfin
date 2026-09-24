@@ -65,6 +65,7 @@ All endpoints require a Jellyfin API key or user token, sent as `Authorization: 
 | `GET /Karaoke/Video/{itemId}[?format=webm]` | The graphics rendered to a silent 900×648 video with Jellyfin's ffmpeg (option C): H.264 MP4 by default, or VP9 WebM with `format=webm` for browsers that can't play H.264. Cached under `<cache>/karaoke-cdg/`. Repeated frames are dropped, so a typical song renders in a few seconds. Supports range requests. The first request waits for the render; Karaoke for Jellyfin can request it when a song is queued |
 | `GET /Karaoke/Prepare/{itemId}`             | Extracts a zipped song ahead of use and returns `{"ZipBacked": bool, "HasCdg": bool}`. Karaoke for Jellyfin calls it when a song is queued                                                                                                                                                                                                                                                                           |
 | `GET /Karaoke/Audio/{itemId}`               | The real audio of a zipped song (its item is a silent placeholder). Supports range requests. 404 for other items                                                                                                                                                                                                                                                                                                     |
+| `GET /Karaoke/Status`                       | Plugin version, whether ffmpeg was found, placeholder and extracted-song counts, and settings warnings. Used by Karaoke for Jellyfin's `/api/health`                                                                                                                                                                                                                                                                 |
 
 `{itemId}` must be an audio item. For a song that isn't zipped, the plugin looks for `Name.cdg`, `Name.CDG` or `Name.Cdg` next to `Name.<ext>`.
 
@@ -91,7 +92,7 @@ Jellyfin only loads plugins built for its version. After a major Jellyfin upgrad
 
 ## Settings
 
-All are set in the plugin's XML configuration (`plugins/configurations/Jellyfin.Plugin.KaraokeCdg.xml`):
+All are set in the plugin's XML configuration (`plugins/configurations/Jellyfin.Plugin.KaraokeCdg.xml`). Invalid values (negative numbers, missing zip folders, an extraction folder inside a zip folder) are logged as warnings when the settings load or change, and listed by `/Karaoke/Status`.
 
 | Setting                  | Default   | What it does                                                                                             |
 | ------------------------ | --------- | -------------------------------------------------------------------------------------------------------- |

@@ -49,7 +49,15 @@ npm run test:crap    # CRAP score check (threshold 15)
 npm run test:acceptance # Full e2e: bddgen + playwright
 npm run lint:check   # ESLint
 npm run format:check # Prettier
+npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 ```
+
+## Error handling and logging
+
+- `server/logger.js` wraps console for the whole process: levels (`LOG_LEVEL`), JSON (`LOG_FORMAT=json`), secret masking, one debug line per API request. Use `console.debug` for chatty detail.
+- Socket handlers are wrapped by `server/socket-guard.js` (payload validation, errors reported to the client, never crash the server). Add a validator there for new events.
+- Call Jellyfin with `jellyfinFetch` and `mediaBrowserToken` from `src/lib/jellyfinFetch.ts` (timeout, one retry for reads, standard auth header). Never use `X-Emby-Token` or `api_key`: Jellyfin 12 rejects them by default.
+- Browser errors go to the server log through `reportClientError` (`src/lib/clientLog.ts`) and `/api/client-log`; error boundaries are `src/app/error.tsx`, `global-error.tsx` and `tv/error.tsx` (self-recovering).
 
 ## Testing
 

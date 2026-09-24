@@ -121,7 +121,30 @@ describe("useCdgSource", () => {
     expect(result.current.source).toEqual(video);
     act(() => result.current.fallBack());
     expect(result.current.source).toEqual({ kind: "none" });
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(result.current.problem).toBe("video display failed");
+    const cdgRequests = mockFetch.mock.calls.filter(([url]) =>
+      String(url).startsWith("/api/cdg/")
+    );
+    expect(cdgRequests).toHaveLength(0);
+  });
+
+  it("flags a failed load, but not a song without graphics", async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 500 });
+    const failed = renderHook(() => useCdgSource("abc", "auto"));
+    await waitFor(() => expect(failed.result.current.problem).toBe("HTTP 500"));
+
+    mockFetch.mockResolvedValue({ ok: false, status: 404 });
+    const missing = renderHook(() => useCdgSource("def", "auto"));
+    await waitFor(() =>
+      expect(missing.result.current.source.kind).toBe("none")
+    );
+    expect(missing.result.current.problem).toBeNull();
+  });
+
+  it("flags a network failure", async () => {
+    mockFetch.mockRejectedValue(new Error("offline"));
+    const { result } = renderHook(() => useCdgSource("ghi", "auto"));
+    await waitFor(() => expect(result.current.problem).toBe("offline"));
   });
 
   it("restarts when the song changes", async () => {

@@ -115,6 +115,11 @@ services:
       # - CDG_JELLYFIN_ROOT=/media/music
       # Render plugin video when a song is queued (default: only in video mode)
       # - CDG_PRERENDER=true
+      # OPTIONAL logging: debug | info | warn | error, and text | json
+      # - LOG_LEVEL=info
+      # - LOG_FORMAT=text
+      # OPTIONAL: browse only this music library (default: all music libraries)
+      # - JELLYFIN_MUSIC_LIBRARY=Music
 
       # System Configuration
       - NODE_ENV=production
@@ -163,6 +168,14 @@ networks: {}
    - **Mobile**: [http://localhost:3000](http://localhost:3000)
    - **TV Display**: [http://localhost:3000/tv](http://localhost:3000/tv)
    - **Admin**: [http://localhost:3000/admin](http://localhost:3000/admin)
+
+### Checking the setup
+
+- `npm run check:jellyfin` confirms the Jellyfin settings work (server reachable, API key accepted, user exists) and says what is wrong if not. The server runs the same check at startup and logs the result.
+- `GET /api/health` reports the app, Jellyfin and Karaoke CDG plugin status. It answers 200 while the app is running, even if Jellyfin is down, so Docker doesn't restart it and lose the queue. Add `?strict=1` to get 503 when Jellyfin has problems. The Docker image's `HEALTHCHECK` uses it.
+- Logs have timestamps and levels. Set `LOG_LEVEL=debug` to see every API request and socket payload, or `LOG_LEVEL=warn` for quiet logs, and `LOG_FORMAT=json` for log collectors. API keys are masked. Errors from the TV and phones' browsers also appear in the server log, tagged `[client:tv]` or `[client:mobile]`.
+
+**Jellyfin 12:** the app authenticates with the standard `Authorization: MediaBrowser Token` header, so it works whether or not "Enable legacy authorization" is on.
 
 ## Usage
 
