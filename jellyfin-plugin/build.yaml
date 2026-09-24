@@ -7,8 +7,10 @@ framework: "net10.0"
 owner: "karaoke-for-jellyfin"
 overview: "Serves .cdg karaoke graphics for Karaoke for Jellyfin"
 description: >
-  Exposes the .cdg file next to each audio file (GET /Karaoke/Cdg/{itemId}) and
-  an ffmpeg-rendered, cached MP4 of the same graphics (GET /Karaoke/Video/{itemId}).
+  Adds a Karaoke channel that plays each song with a .cdg file as a video
+  (graphics and audio) in Jellyfin's own apps. Also exposes the raw .cdg file
+  (GET /Karaoke/Cdg/{itemId}) and a rendered, cached video of the graphics
+  (GET /Karaoke/Video/{itemId}) for Karaoke for Jellyfin.
 category: "General"
 artifacts:
   - "Jellyfin.Plugin.KaraokeCdg.dll"

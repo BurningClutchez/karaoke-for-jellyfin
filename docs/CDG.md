@@ -19,6 +19,10 @@ Songs without a `.cdg` file show the usual synced lyrics. If graphics can't be l
 
 When the TV starts a song, it requests `/api/cdg/{itemId}`. The server tries A first, then B. If it gets valid CD+G data, the TV draws it on a canvas that follows the audio clock. In `auto` mode, C is used when the browser can't draw the data (no canvas support, or data that isn't CD+G). C is also used for every song when `CDG_MODE=video`. If C also fails, the TV shows lyrics.
 
+## In Jellyfin's own apps
+
+The Karaoke CDG plugin also adds a **Karaoke** channel to Jellyfin's apps, including the web app, Android, Android TV and iOS. Each song with graphics plays there as an ordinary video, with the graphics and the song's audio together. This doesn't involve Karaoke for Jellyfin at all. See [`jellyfin-plugin/README.md`](../jellyfin-plugin/README.md#karaoke-channel).
+
 ## Option A: mount the music library
 
 This needs no Jellyfin changes. The karaoke app must be able to reach the same files Jellyfin uses.

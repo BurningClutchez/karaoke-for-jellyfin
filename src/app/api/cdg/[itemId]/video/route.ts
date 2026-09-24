@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
-import { isValidItemId, pluginUrl } from "@/services/cdg/source";
+import { authHeaders, isValidItemId, pluginUrl } from "@/services/cdg/source";
 
 const PASSTHROUGH_HEADERS = [
   "content-type",
@@ -25,7 +25,7 @@ export async function GET(
 
   try {
     const ctx = await getJellyfinService().ensureAuth();
-    const headers: Record<string, string> = { "X-Emby-Token": ctx.apiKey };
+    const headers = authHeaders(ctx);
     const range = request.headers.get("range");
     if (range) headers["Range"] = range;
 

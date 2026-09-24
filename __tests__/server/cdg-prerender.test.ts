@@ -33,7 +33,10 @@ describe("prerenderCdgVideo", () => {
       206
     );
     expect(fetchImpl).toHaveBeenCalledWith("http://jf/Karaoke/Video/abc123", {
-      headers: { "X-Emby-Token": "key", Range: "bytes=0-0" },
+      headers: {
+        Authorization: 'MediaBrowser Token="key"',
+        Range: "bytes=0-0",
+      },
     });
   });
 
@@ -72,6 +75,8 @@ describe("prerenderCdgVideo", () => {
     await expect(
       prerenderCdgVideo(song, { env: noKey, fetchImpl })
     ).resolves.toBe(404);
-    expect(fetchImpl.mock.calls[0][1].headers["X-Emby-Token"]).toBe("");
+    expect(fetchImpl.mock.calls[0][1].headers.Authorization).toBe(
+      'MediaBrowser Token=""'
+    );
   });
 });

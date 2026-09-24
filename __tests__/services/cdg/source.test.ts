@@ -50,7 +50,7 @@ describe("CDG source lookup", () => {
     await expect(getItemPath(ctx, "abc")).resolves.toBe("/media/music/a.mp3");
     expect(mockFetch).toHaveBeenCalledWith(
       "http://jf/Items/abc?userId=user1&fields=Path",
-      { headers: { "X-Emby-Token": "key" } }
+      { headers: { Authorization: 'MediaBrowser Token="key"' } }
     );
   });
 
@@ -85,7 +85,7 @@ describe("CDG source lookup", () => {
 
     expect(file?.source).toBe("plugin");
     expect(mockFetch).toHaveBeenLastCalledWith("http://jf/Karaoke/Cdg/abc", {
-      headers: { "X-Emby-Token": "key" },
+      headers: { Authorization: 'MediaBrowser Token="key"' },
     });
   });
 

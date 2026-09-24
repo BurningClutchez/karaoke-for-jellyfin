@@ -16,8 +16,12 @@ export function isValidItemId(itemId: string): boolean {
   return ITEM_ID_PATTERN.test(itemId);
 }
 
-function authHeaders(ctx: JellyfinContext): Record<string, string> {
-  return { "X-Emby-Token": ctx.apiKey };
+/**
+ * Jellyfin's standard auth header. Jellyfin 12 rejects the legacy
+ * X-Emby-Token header and api_key parameter unless an admin re-enables them.
+ */
+export function authHeaders(ctx: JellyfinContext): Record<string, string> {
+  return { Authorization: `MediaBrowser Token="${ctx.apiKey}"` };
 }
 
 /** Plugin endpoint URL for raw CDG (B) or pre-rendered video (C) */

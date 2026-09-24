@@ -79,7 +79,7 @@ public class KaraokeCdgController : ControllerBase
         }
 
         // Let the render finish for the cache even if this client gives up waiting
-        var video = await _renderer.GetOrRenderAsync(itemId, cdgPath, format).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var video = await _renderer.GetOrRenderAsync(new CdgRenderJob(itemId, cdgPath, format)).WaitAsync(cancellationToken).ConfigureAwait(false);
         return video is null
             ? StatusCode(StatusCodes.Status500InternalServerError)
             : PhysicalFile(video, CdgVideoRenderer.ContentType(format), enableRangeProcessing: true);

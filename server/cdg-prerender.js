@@ -38,7 +38,8 @@ function prerenderCdgVideo(mediaItem, options = {}) {
 
   return fetchImpl(`${baseUrl}/Karaoke/Video/${itemId}`, {
     headers: {
-      "X-Emby-Token": env.JELLYFIN_API_KEY || "",
+      // Standard header: Jellyfin 12 rejects X-Emby-Token by default
+      Authorization: `MediaBrowser Token="${env.JELLYFIN_API_KEY || ""}"`,
       Range: "bytes=0-0",
     },
   })

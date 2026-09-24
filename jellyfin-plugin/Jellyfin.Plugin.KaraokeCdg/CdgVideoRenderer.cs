@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.MediaEncoding;
 using Microsoft.Extensions.Logging;
@@ -7,8 +8,17 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.KaraokeCdg;
 
 /// <summary>
-/// Pre-renders CDG graphics to a silent, seekable video with Jellyfin's ffmpeg and caches the result.
-/// The Karaoke for Jellyfin TV keeps the video in step with the song's audio, so no audio is muxed in.
+/// What to render: the CDG graphics alone (for the Karaoke for Jellyfin TV, which plays the
+/// song's audio itself), or graphics and audio together (for Jellyfin's own clients).
+/// </summary>
+/// <param name="ItemId">Audio item the CDG belongs to.</param>
+/// <param name="CdgPath">Path of the CDG file.</param>
+/// <param name="Format">Container and codec to render.</param>
+/// <param name="AudioPath">Audio file to mux in, or null for a silent video.</param>
+public sealed record CdgRenderJob(Guid ItemId, string CdgPath, CdgVideoFormat Format, string? AudioPath = null);
+
+/// <summary>
+/// Pre-renders CDG graphics to a seekable video with Jellyfin's ffmpeg and caches the result.
 /// </summary>
 public sealed class CdgVideoRenderer
 {
@@ -31,59 +41,93 @@ public sealed class CdgVideoRenderer
     }
 
     /// <summary>
-    /// Returns the cached MP4 for a CDG file, rendering it first if needed.
+    /// Returns the cached video for a job, rendering it first if needed.
+    /// Concurrent requests for the same video share one ffmpeg run.
     /// </summary>
-    /// <param name="itemId">Jellyfin item the CDG belongs to.</param>
-    /// <param name="cdgPath">Path of the CDG file.</param>
-    /// <param name="format">Container and codec to render.</param>
+    /// <param name="job">What to render.</param>
     /// <returns>Path of the video, or null if rendering failed.</returns>
-    public Task<string?> GetOrRenderAsync(Guid itemId, string cdgPath, CdgVideoFormat format)
+    public Task<string?> GetOrRenderAsync(CdgRenderJob job)
     {
-        var output = GetCachePath(itemId, cdgPath, format);
+        var output = GetCachePath(job);
         if (File.Exists(output))
         {
             return Task.FromResult<string?>(output);
         }
 
-        var job = _jobs.GetOrAdd(output, key => new Lazy<Task<string?>>(() => RenderAsync(cdgPath, key, format)));
-        return job.Value;
+        var render = _jobs.GetOrAdd(output, key => new Lazy<Task<string?>>(() => RenderAsync(job, key)));
+        return render.Value;
     }
 
     /// <summary>
-    /// Builds the ffmpeg arguments: CDG in, duplicate frames dropped, 3x nearest-neighbour
-    /// upscale, H.264 MP4 or VP9 WebM out.
+    /// Gets where the video for a job is (or will be) cached. The name includes the size and
+    /// timestamp of the source files, so editing either one produces a new render.
     /// </summary>
-    /// <param name="input">CDG file path.</param>
-    /// <param name="output">Video file path.</param>
-    /// <param name="format">Container and codec to render.</param>
-    /// <returns>The argument list.</returns>
-    public static IReadOnlyList<string> BuildArguments(string input, string output, CdgVideoFormat format)
+    /// <param name="job">What to render.</param>
+    /// <returns>The cache file path.</returns>
+    public string GetCachePath(CdgRenderJob job)
     {
-        string[] common =
+        var cdg = new FileInfo(job.CdgPath);
+        var name = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{job.ItemId:N}-{cdg.Length}-{cdg.LastWriteTimeUtc.Ticks}");
+        if (job.AudioPath is not null)
+        {
+            var audio = new FileInfo(job.AudioPath);
+            name += string.Create(CultureInfo.InvariantCulture, $"-av-{audio.Length}-{audio.LastWriteTimeUtc.Ticks}");
+        }
+
+        var extension = job.Format == CdgVideoFormat.WebM ? "webm" : "mp4";
+        return Path.Combine(_applicationPaths.CachePath, "karaoke-cdg", $"{name}.{extension}");
+    }
+
+    /// <summary>
+    /// Builds the ffmpeg arguments: CDG (and optionally audio) in, duplicate frames dropped,
+    /// 3x nearest-neighbour upscale, H.264 MP4 or VP9 WebM out.
+    /// </summary>
+    /// <param name="job">What to render.</param>
+    /// <param name="output">Video file path.</param>
+    /// <returns>The argument list.</returns>
+    public static IReadOnlyList<string> BuildArguments(CdgRenderJob job, string output)
+    {
+        var muxAudio = job.AudioPath is not null;
+        List<string> args = ["-hide_banner", "-loglevel", "error", "-y", "-f", "cdg", "-i", job.CdgPath];
+
+        if (muxAudio)
+        {
+            args.AddRange(["-i", job.AudioPath!, "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-ar", "48000"]);
+        }
+        else
+        {
+            args.Add("-an");
+        }
+
+        // Cap at 30 fps, then drop frames identical to the previous one: CDG graphics are
+        // still most of the time, so this cuts encode time and size several-fold. Kept frames
+        // keep their timestamps (variable frame rate). Videos for Jellyfin's clients keep at
+        // least one frame a second, which suits more players.
+        var dropLimit = muxAudio ? "30" : "0";
+        args.AddRange(
         [
-            "-hide_banner", "-loglevel", "error", "-y",
-            "-f", "cdg", "-i", input,
-            "-an",
-            // Cap at 30 fps, then drop frames identical to the previous one: CDG
-            // graphics are still most of the time, so this cuts encode time and
-            // size several-fold. Kept frames keep their timestamps (variable frame rate).
-            "-vf", "fps=30,mpdecimate=max=0:hi=1:lo=1:frac=0,scale=900:648:flags=neighbor,format=yuv420p",
+            "-vf", $"fps=30,mpdecimate=max={dropLimit}:hi=1:lo=1:frac=0,scale=900:648:flags=neighbor,format=yuv420p",
             "-fps_mode", "vfr"
-        ];
-        string[] codec = format == CdgVideoFormat.WebM
-            ?
-            [
-                "-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8", "-row-mt", "1",
-                "-crf", "30", "-b:v", "0",
-                "-f", "webm", output
-            ]
-            :
-            [
-                "-c:v", "libx264", "-preset", "veryfast", "-tune", "animation", "-crf", "18",
-                "-movflags", "+faststart",
-                "-f", "mp4", output
-            ];
-        return [.. common, .. codec];
+        ]);
+
+        if (job.Format == CdgVideoFormat.WebM)
+        {
+            args.AddRange(["-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8", "-row-mt", "1", "-crf", "30", "-b:v", "0", "-f", "webm", output]);
+            return args;
+        }
+
+        args.AddRange(["-c:v", "libx264", "-preset", "veryfast", "-tune", "animation", "-crf", "18"]);
+        if (muxAudio)
+        {
+            // Predictable profile for client device profiles, and a keyframe every 2 s so
+            // Jellyfin's clients can seek
+            args.AddRange(["-profile:v", "high", "-level:v", "4.0", "-force_key_frames", "expr:gte(t,n_forced*2)"]);
+        }
+
+        args.AddRange(["-movflags", "+faststart", "-f", "mp4", output]);
+        return args;
     }
 
     /// <summary>
@@ -94,16 +138,7 @@ public sealed class CdgVideoRenderer
     public static string ContentType(CdgVideoFormat format) =>
         format == CdgVideoFormat.WebM ? "video/webm" : "video/mp4";
 
-    private string GetCachePath(Guid itemId, string cdgPath, CdgVideoFormat format)
-    {
-        // Include size and timestamp so an edited CDG file gets re-rendered
-        var info = new FileInfo(cdgPath);
-        var extension = format == CdgVideoFormat.WebM ? "webm" : "mp4";
-        var name = $"{itemId:N}-{info.Length}-{info.LastWriteTimeUtc.Ticks}.{extension}";
-        return Path.Combine(_applicationPaths.CachePath, "karaoke-cdg", name);
-    }
-
-    private async Task<string?> RenderAsync(string cdgPath, string output, CdgVideoFormat format)
+    private async Task<string?> RenderAsync(CdgRenderJob job, string output)
     {
         var temp = output + ".partial";
         try
@@ -115,7 +150,7 @@ public sealed class CdgVideoRenderer
                 CreateNoWindow = true,
                 RedirectStandardError = true,
             };
-            foreach (var argument in BuildArguments(cdgPath, temp, format))
+            foreach (var argument in BuildArguments(job, temp))
             {
                 startInfo.ArgumentList.Add(argument);
             }
@@ -127,7 +162,7 @@ public sealed class CdgVideoRenderer
 
             if (process.ExitCode != 0)
             {
-                _logger.LogError("Rendering {CdgPath} failed ({ExitCode}): {Errors}", cdgPath, process.ExitCode, errors);
+                _logger.LogError("Rendering {CdgPath} failed ({ExitCode}): {Errors}", job.CdgPath, process.ExitCode, errors);
                 File.Delete(temp);
                 return null;
             }
@@ -138,7 +173,7 @@ public sealed class CdgVideoRenderer
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            _logger.LogError(ex, "Rendering {CdgPath} failed", cdgPath);
+            _logger.LogError(ex, "Rendering {CdgPath} failed", job.CdgPath);
             return null;
         }
         finally

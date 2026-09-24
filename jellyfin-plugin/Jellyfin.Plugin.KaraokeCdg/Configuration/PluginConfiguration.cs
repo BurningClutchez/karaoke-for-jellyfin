@@ -12,4 +12,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// to pre-render CDG graphics as MP4.
     /// </summary>
     public bool EnableVideo { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the "Karaoke" channel is shown in Jellyfin's apps.
+    /// </summary>
+    public bool EnableChannel { get; set; } = true;
 }
