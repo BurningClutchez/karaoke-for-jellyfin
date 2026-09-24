@@ -8,7 +8,9 @@ owner: "karaoke-for-jellyfin"
 overview: "Serves .cdg karaoke graphics for Karaoke for Jellyfin"
 description: >
   Adds a Karaoke channel that plays each song with a .cdg file as a video
-  (graphics and audio) in Jellyfin's own apps. Also exposes the raw .cdg file
+  (graphics and audio) in Jellyfin's own apps, and makes zipped karaoke songs
+  (one .cdg and one audio file per zip) searchable through placeholder songs,
+  extracting them only when they are played. Also exposes the raw .cdg file
   (GET /Karaoke/Cdg/{itemId}) and a rendered, cached video of the graphics
   (GET /Karaoke/Video/{itemId}) for Karaoke for Jellyfin.
 category: "General"

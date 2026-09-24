@@ -23,6 +23,10 @@ When the TV starts a song, it requests `/api/cdg/{itemId}`. The server tries A f
 
 The Karaoke CDG plugin also adds a **Karaoke** channel to Jellyfin's apps, including the web app, Android, Android TV and iOS. Each song with graphics plays there as an ordinary video, with the graphics and the song's audio together. This doesn't involve Karaoke for Jellyfin at all. See [`jellyfin-plugin/README.md`](../jellyfin-plugin/README.md#karaoke-channel).
 
+## Zipped karaoke songs
+
+With the Karaoke CDG plugin installed, zips holding one `.cdg` and one audio file work too. The plugin adds a silent placeholder song for each zip, so they're searchable. When one is queued, Karaoke for Jellyfin asks the plugin to extract it, and the TV plays the real audio and graphics. Option A (the local mount) doesn't apply to zipped songs; they always go through the plugin. See [`jellyfin-plugin/README.md`](../jellyfin-plugin/README.md#zipped-karaoke-songs).
+
 ## Option A: mount the music library
 
 This needs no Jellyfin changes. The karaoke app must be able to reach the same files Jellyfin uses.

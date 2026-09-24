@@ -50,4 +50,29 @@ function prerenderCdgVideo(mediaItem, options = {}) {
     });
 }
 
-module.exports = { shouldPrerender, prerenderCdgVideo };
+/**
+ * Fire-and-forget request asking the plugin to get a queued song ready: a
+ * zipped song is extracted now, so it starts instantly when its turn comes.
+ * Harmless for other songs, and a 404 when the plugin isn't installed.
+ */
+function prepareKaraokeSong(mediaItem, options = {}) {
+  const { env = process.env, fetchImpl = fetch, log = console } = options;
+  const itemId = mediaItem && mediaItem.jellyfinId;
+  const baseUrl = (env.JELLYFIN_SERVER_URL || "").replace(/\/$/, "");
+  if (!baseUrl || !ITEM_ID_PATTERN.test(itemId || "")) {
+    return Promise.resolve(null);
+  }
+
+  return fetchImpl(`${baseUrl}/Karaoke/Prepare/${itemId}`, {
+    headers: {
+      Authorization: `MediaBrowser Token="${env.JELLYFIN_API_KEY || ""}"`,
+    },
+  })
+    .then(response => response.status)
+    .catch(error => {
+      log.warn("Karaoke song prepare failed:", error.message);
+      return null;
+    });
+}
+
+module.exports = { shouldPrerender, prerenderCdgVideo, prepareKaraokeSong };

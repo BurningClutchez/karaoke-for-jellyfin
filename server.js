@@ -6,7 +6,10 @@ const { Server } = require("socket.io");
 const fetch = require("node-fetch");
 const { handleSendReaction } = require("./server/reactions");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
-const { prerenderCdgVideo } = require("./server/cdg-prerender");
+const {
+  prerenderCdgVideo,
+  prepareKaraokeSong,
+} = require("./server/cdg-prerender");
 
 // Simple rating generator for server-side use
 function generateRandomRating() {
@@ -510,7 +513,9 @@ app.prepare().then(() => {
         currentSession.queue.splice(fairIndex, 0, queueItem);
       }
 
-      // Render CD+G graphics video ahead of the song's turn (no-op unless enabled)
+      // Unzip a zipped karaoke song now, and render its CD+G graphics video
+      // ahead of its turn (the render is a no-op unless enabled)
+      prepareKaraokeSong(mediaItem);
       prerenderCdgVideo(mediaItem);
 
       // Update positions

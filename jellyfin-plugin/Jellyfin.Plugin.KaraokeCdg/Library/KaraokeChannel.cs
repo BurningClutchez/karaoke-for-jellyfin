@@ -19,7 +19,7 @@ public class KaraokeChannel : IChannel, IRequiresMediaInfoCallback, IHasCacheKey
 {
     private const string ArtistFolderPrefix = "artist:";
     private readonly KaraokeLibraryIndex _index;
-    private readonly CdgVideoRenderer _renderer;
+    private readonly KaraokeSongRenderer _renderer;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly ILogger<KaraokeChannel> _logger;
@@ -28,13 +28,13 @@ public class KaraokeChannel : IChannel, IRequiresMediaInfoCallback, IHasCacheKey
     /// Initializes a new instance of the <see cref="KaraokeChannel"/> class.
     /// </summary>
     /// <param name="index">Karaoke song index.</param>
-    /// <param name="renderer">Video renderer.</param>
+    /// <param name="renderer">Karaoke video renderer.</param>
     /// <param name="libraryManager">Library manager.</param>
     /// <param name="userManager">User manager.</param>
     /// <param name="logger">Logger.</param>
     public KaraokeChannel(
         KaraokeLibraryIndex index,
-        CdgVideoRenderer renderer,
+        KaraokeSongRenderer renderer,
         ILibraryManager libraryManager,
         IUserManager userManager,
         ILogger<KaraokeChannel> logger)
@@ -102,7 +102,7 @@ public class KaraokeChannel : IChannel, IRequiresMediaInfoCallback, IHasCacheKey
     {
         if (Guid.TryParse(id, out var songId) && _index.Find(songId) is { } song)
         {
-            var video = await _renderer.GetOrRenderAsync(ToJob(song)).WaitAsync(cancellationToken).ConfigureAwait(false);
+            var video = await _renderer.RenderAsync(song, cancellationToken).ConfigureAwait(false);
             if (video is null)
             {
                 _logger.LogError("Karaoke video for {Title} could not be rendered", song.Title);
@@ -111,14 +111,6 @@ public class KaraokeChannel : IChannel, IRequiresMediaInfoCallback, IHasCacheKey
 
         return [];
     }
-
-    /// <summary>
-    /// Gets the render job for a song's karaoke video (graphics and audio, H.264 MP4).
-    /// </summary>
-    /// <param name="song">The song.</param>
-    /// <returns>The render job.</returns>
-    public static CdgRenderJob ToJob(KaraokeSong song) =>
-        new(song.Id, song.CdgPath, CdgVideoFormat.Mp4, song.AudioPath);
 
     /// <summary>
     /// Groups songs into one folder per artist.
@@ -149,7 +141,7 @@ public class KaraokeChannel : IChannel, IRequiresMediaInfoCallback, IHasCacheKey
         {
             try
             {
-                items.Add(ToItem(song, _renderer.GetCachePath(ToJob(song))));
+                items.Add(ToItem(song, _renderer.GetCachePath(song)));
             }
             catch (IOException ex)
             {

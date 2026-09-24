@@ -15,7 +15,14 @@ namespace Jellyfin.Plugin.KaraokeCdg;
 /// <param name="CdgPath">Path of the CDG file.</param>
 /// <param name="Format">Container and codec to render.</param>
 /// <param name="AudioPath">Audio file to mux in, or null for a silent video.</param>
-public sealed record CdgRenderJob(Guid ItemId, string CdgPath, CdgVideoFormat Format, string? AudioPath = null);
+/// <param name="SourcePath">File that identifies the source for caching, used instead of the
+/// CDG and audio files when set (a zip, whose extracted copies come and go).</param>
+public sealed record CdgRenderJob(
+    Guid ItemId,
+    string CdgPath,
+    CdgVideoFormat Format,
+    string? AudioPath = null,
+    string? SourcePath = null);
 
 /// <summary>
 /// Pre-renders CDG graphics to a seekable video with Jellyfin's ffmpeg and caches the result.
@@ -66,6 +73,16 @@ public sealed class CdgVideoRenderer
     /// <returns>The cache file path.</returns>
     public string GetCachePath(CdgRenderJob job)
     {
+        var extension = job.Format == CdgVideoFormat.WebM ? "webm" : "mp4";
+        if (job.SourcePath is not null)
+        {
+            var source = new FileInfo(job.SourcePath);
+            var zipName = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{job.ItemId:N}-z{source.Length}-{source.LastWriteTimeUtc.Ticks}{(job.AudioPath is null ? string.Empty : "-av")}");
+            return Path.Combine(_applicationPaths.CachePath, "karaoke-cdg", $"{zipName}.{extension}");
+        }
+
         var cdg = new FileInfo(job.CdgPath);
         var name = string.Create(
             CultureInfo.InvariantCulture,
@@ -76,7 +93,6 @@ public sealed class CdgVideoRenderer
             name += string.Create(CultureInfo.InvariantCulture, $"-av-{audio.Length}-{audio.LastWriteTimeUtc.Ticks}");
         }
 
-        var extension = job.Format == CdgVideoFormat.WebM ? "webm" : "mp4";
         return Path.Combine(_applicationPaths.CachePath, "karaoke-cdg", $"{name}.{extension}");
     }
 

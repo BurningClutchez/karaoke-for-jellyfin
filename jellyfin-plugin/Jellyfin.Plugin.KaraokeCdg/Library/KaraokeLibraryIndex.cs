@@ -3,6 +3,7 @@ using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
+using Jellyfin.Plugin.KaraokeCdg.Zips;
 using AudioItem = MediaBrowser.Controller.Entities.Audio.Audio;
 
 namespace Jellyfin.Plugin.KaraokeCdg.Library;
@@ -18,6 +19,7 @@ namespace Jellyfin.Plugin.KaraokeCdg.Library;
 /// <param name="RunTimeTicks">Duration of the audio.</param>
 /// <param name="ImagePath">Cover art path, if any.</param>
 /// <param name="DateModified">Latest change to the audio or CDG file.</param>
+/// <param name="ZipPath">The zip holding the song, when the audio item is a placeholder.</param>
 public sealed record KaraokeSong(
     Guid Id,
     string Title,
@@ -26,7 +28,8 @@ public sealed record KaraokeSong(
     string CdgPath,
     long? RunTimeTicks,
     string? ImagePath,
-    DateTime DateModified);
+    DateTime DateModified,
+    string? ZipPath = null);
 
 /// <summary>
 /// Finds the library's audio items that have CDG graphics. The scan lists each music folder
@@ -36,6 +39,7 @@ public sealed class KaraokeLibraryIndex
 {
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(10);
     private readonly ILibraryManager _libraryManager;
+    private readonly PlaceholderIndex _placeholders;
     private readonly Lock _lock = new();
     private IReadOnlyList<KaraokeSong> _songs = [];
     private Dictionary<Guid, KaraokeSong> _byId = [];
@@ -45,9 +49,11 @@ public sealed class KaraokeLibraryIndex
     /// Initializes a new instance of the <see cref="KaraokeLibraryIndex"/> class.
     /// </summary>
     /// <param name="libraryManager">Library manager.</param>
-    public KaraokeLibraryIndex(ILibraryManager libraryManager)
+    /// <param name="placeholders">Zip placeholders.</param>
+    public KaraokeLibraryIndex(ILibraryManager libraryManager, PlaceholderIndex placeholders)
     {
         _libraryManager = libraryManager;
+        _placeholders = placeholders;
     }
 
     /// <summary>
@@ -66,7 +72,7 @@ public sealed class KaraokeLibraryIndex
                     Recursive = true,
                     IsVirtualItem = false,
                 });
-                _songs = Build(audioItems.OfType<AudioItem>().Select(ToCandidate), ListCdgFiles);
+                _songs = Build(audioItems.OfType<AudioItem>().Select(ToCandidate), ListCdgFiles, _placeholders.FindByPlaceholder);
                 _byId = _songs.ToDictionary(song => song.Id);
                 _builtAt = DateTime.UtcNow;
             }
@@ -106,16 +112,29 @@ public sealed class KaraokeLibraryIndex
     /// </summary>
     /// <param name="candidates">Audio items to consider.</param>
     /// <param name="listFiles">Lists the files in a folder.</param>
+    /// <param name="findZip">Finds the zip behind a placeholder path, if any.</param>
     /// <returns>The songs that have CDG graphics, sorted by artist then title.</returns>
     public static IReadOnlyList<KaraokeSong> Build(
         IEnumerable<KaraokeSong> candidates,
-        Func<string, IEnumerable<string>> listFiles)
+        Func<string, IEnumerable<string>> listFiles,
+        Func<string, ZipRecord?>? findZip = null)
     {
         var folders = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         var songs = new List<KaraokeSong>();
 
         foreach (var candidate in candidates)
         {
+            if (findZip?.Invoke(candidate.AudioPath) is { IsKaraoke: true } zip)
+            {
+                var zipModified = new DateTime(zip.ZipModifiedTicks, DateTimeKind.Utc);
+                songs.Add(candidate with
+                {
+                    ZipPath = zip.ZipPath,
+                    DateModified = zipModified > candidate.DateModified ? zipModified : candidate.DateModified,
+                });
+                continue;
+            }
+
             var folder = Path.GetDirectoryName(candidate.AudioPath);
             if (string.IsNullOrEmpty(folder))
             {

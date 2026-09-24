@@ -11,7 +11,7 @@ namespace Jellyfin.Plugin.KaraokeCdg.Tasks;
 public class RenderKaraokeVideosTask : IScheduledTask
 {
     private readonly KaraokeLibraryIndex _index;
-    private readonly CdgVideoRenderer _renderer;
+    private readonly KaraokeSongRenderer _renderer;
     private readonly ILogger<RenderKaraokeVideosTask> _logger;
 
     /// <summary>
@@ -20,7 +20,7 @@ public class RenderKaraokeVideosTask : IScheduledTask
     /// <param name="index">Karaoke song index.</param>
     /// <param name="renderer">Video renderer.</param>
     /// <param name="logger">Logger.</param>
-    public RenderKaraokeVideosTask(KaraokeLibraryIndex index, CdgVideoRenderer renderer, ILogger<RenderKaraokeVideosTask> logger)
+    public RenderKaraokeVideosTask(KaraokeLibraryIndex index, KaraokeSongRenderer renderer, ILogger<RenderKaraokeVideosTask> logger)
     {
         _index = index;
         _renderer = renderer;
@@ -48,7 +48,7 @@ public class RenderKaraokeVideosTask : IScheduledTask
         for (var i = 0; i < songs.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await _renderer.GetOrRenderAsync(KaraokeChannel.ToJob(songs[i])).ConfigureAwait(false) is null)
+            if (await _renderer.RenderAsync(songs[i], cancellationToken).ConfigureAwait(false) is null)
             {
                 failed++;
             }

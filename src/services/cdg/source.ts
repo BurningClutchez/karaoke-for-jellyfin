@@ -24,10 +24,10 @@ export function authHeaders(ctx: JellyfinContext): Record<string, string> {
   return { Authorization: `MediaBrowser Token="${ctx.apiKey}"` };
 }
 
-/** Plugin endpoint URL for raw CDG (B) or pre-rendered video (C) */
+/** Karaoke CDG plugin endpoint URL */
 export function pluginUrl(
   ctx: JellyfinContext,
-  kind: "Cdg" | "Video",
+  kind: "Cdg" | "Video" | "Prepare" | "Audio",
   itemId: string
 ): string {
   return `${ctx.baseUrl}/Karaoke/${kind}/${itemId}`;

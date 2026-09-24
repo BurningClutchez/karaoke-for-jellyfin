@@ -13,6 +13,11 @@ vi.mock("@/services/jellyfin", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
+const mockGetZipAudioSource = vi.fn();
+vi.mock("@/services/cdg/zipAudio", () => ({
+  getZipAudioSource: (...args: unknown[]) => mockGetZipAudioSource(...args),
+}));
+
 import { GET, OPTIONS } from "@/app/api/stream/[itemId]/route";
 
 function createRequest(
@@ -28,6 +33,41 @@ describe("GET /api/stream/[itemId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.JELLYFIN_API_KEY = "test-api-key";
+    mockGetZipAudioSource.mockResolvedValue(null);
+  });
+
+  it("streams a zipped karaoke song's real audio from the plugin", async () => {
+    mockGetZipAudioSource.mockResolvedValue({
+      url: "http://jellyfin:8096/Karaoke/Audio/zip1",
+      headers: { Authorization: 'MediaBrowser Token="k"' },
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 206,
+      headers: new Headers({
+        "content-type": "audio/mpeg",
+        "content-range": "bytes 0-9/100",
+      }),
+      body: new ReadableStream(),
+    });
+
+    const response = await GET(
+      createRequest("/api/stream/zip1", { range: "bytes=0-9" }),
+      { params: Promise.resolve({ itemId: "zip1" }) }
+    );
+
+    expect(response.status).toBe(206);
+    expect(mockGetDirectStreamUrl).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://jellyfin:8096/Karaoke/Audio/zip1",
+      {
+        headers: {
+          Authorization: 'MediaBrowser Token="k"',
+          "User-Agent": "Karaoke-For-Jellyfin/1.0",
+          Range: "bytes=0-9",
+        },
+      }
+    );
   });
 
   it("returns audio stream for valid item ID", async () => {
