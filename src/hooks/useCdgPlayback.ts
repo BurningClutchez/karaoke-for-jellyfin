@@ -54,12 +54,17 @@ export function syncVideoToAudio(
   video: HTMLVideoElement,
   audio: HTMLMediaElement
 ): void {
-  if (Math.abs(video.currentTime - audio.currentTime) > MAX_DRIFT_SECONDS) {
-    video.currentTime = audio.currentTime;
+  // The video can end before the song (trailing still frames are dropped, or
+  // the CDG is shorter than the audio); past its end, hold the last frame
+  // rather than calling play(), which would restart it from the beginning
+  const end = video.duration || Infinity;
+  const target = Math.min(audio.currentTime, end);
+  if (Math.abs(video.currentTime - target) > MAX_DRIFT_SECONDS) {
+    video.currentTime = target;
   }
   if (audio.paused && !video.paused) {
     video.pause();
-  } else if (!audio.paused && video.paused) {
+  } else if (!audio.paused && video.paused && audio.currentTime < end) {
     video.play().catch(() => {
       // Autoplay can be refused; the next sync tick retries
     });

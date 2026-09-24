@@ -24,6 +24,8 @@ services:
       # Option A: read .cdg files from a read-only mount of the music library
       # - CDG_LOCAL_ROOT=/music
       # - CDG_JELLYFIN_ROOT=/media/music
+      # Render plugin video when a song is queued (default: only in video mode)
+      # - CDG_PRERENDER=true
 
       # System Configuration
       - NODE_ENV=production

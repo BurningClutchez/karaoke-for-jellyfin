@@ -52,7 +52,15 @@ Use the plugin when the karaoke app can't mount the library, for example when Je
 | `video`          | Always use plugin video. Useful for weak smart-TV browsers. Falls back to lyrics |
 | `off`            | Ignore `.cdg` files                                                              |
 
+## Rendering ahead
+
+With `CDG_MODE=video`, the app asks the plugin to render a song's video as soon as the song is queued, not when its turn comes. Usually at least one song plays in between, so the video is already cached when it's needed. Songs without a `.cdg` file get a quick 404, and nothing is rendered for them.
+
+`CDG_PRERENDER=true` turns this on in the other modes too, and `CDG_PRERENDER=false` turns it off. It's off by default in `auto` mode, because there the video is only a fallback, and rendering every queued song would use Jellyfin's CPU for videos that are rarely played.
+
+Only the H.264 MP4 is rendered ahead. A TV whose browser can't play H.264 asks for WebM, which is still rendered on first play.
+
 ## Trade-offs
 
 - **Browser drawing (A and B)** gives sharp pixels, starts instantly, and pauses, seeks and reconnects instantly. The TV downloads the whole `.cdg` file first, about 1.7 MB for a 4-minute song.
-- **Plugin video (C)** encodes each song once, which takes a few seconds on first play. After that the MP4 is cached in Jellyfin's cache folder under `karaoke-cdg/`. The video has no audio, because the song's audio still plays on its own, so seeking works and the audio isn't re-encoded. The picture is slightly softer than browser drawing. The TV asks for H.264 MP4, or for VP9 WebM if its browser can't play H.264.
+- **Plugin video (C)** encodes each song once, on first play or when it is queued (see above). ffmpeg drops frames that repeat the previous one, which makes rendering several times faster; a typical 4-minute song takes about 5–7 s on 4 CPU cores. After that the MP4 is cached in Jellyfin's cache folder under `karaoke-cdg/`. The video has no audio, because the song's audio still plays on its own, so seeking works and the audio isn't re-encoded. The picture is slightly softer than browser drawing. The TV asks for H.264 MP4, or for VP9 WebM if its browser can't play H.264.

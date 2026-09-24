@@ -50,7 +50,8 @@ public sealed class CdgVideoRenderer
     }
 
     /// <summary>
-    /// Builds the ffmpeg arguments: CDG in, 3x nearest-neighbour upscale, H.264 MP4 or VP9 WebM out.
+    /// Builds the ffmpeg arguments: CDG in, duplicate frames dropped, 3x nearest-neighbour
+    /// upscale, H.264 MP4 or VP9 WebM out.
     /// </summary>
     /// <param name="input">CDG file path.</param>
     /// <param name="output">Video file path.</param>
@@ -63,8 +64,11 @@ public sealed class CdgVideoRenderer
             "-hide_banner", "-loglevel", "error", "-y",
             "-f", "cdg", "-i", input,
             "-an",
-            "-vf", "scale=900:648:flags=neighbor,format=yuv420p",
-            "-r", "30"
+            // Cap at 30 fps, then drop frames identical to the previous one: CDG
+            // graphics are still most of the time, so this cuts encode time and
+            // size several-fold. Kept frames keep their timestamps (variable frame rate).
+            "-vf", "fps=30,mpdecimate=max=0:hi=1:lo=1:frac=0,scale=900:648:flags=neighbor,format=yuv420p",
+            "-fps_mode", "vfr"
         ];
         string[] codec = format == CdgVideoFormat.WebM
             ?

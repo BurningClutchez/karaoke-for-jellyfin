@@ -107,6 +107,20 @@ describe("syncVideoToAudio", () => {
     expect(paused.play).toHaveBeenCalled();
   });
 
+  it("holds the last frame once the audio passes the end of the video", () => {
+    const video = Object.assign(media(60, true), { duration: 60 });
+    syncVideoToAudio(video, media(75, false));
+    expect(video.currentTime).toBe(60);
+    expect(video.play).not.toHaveBeenCalled();
+  });
+
+  it("resumes when the audio seeks back inside the video", () => {
+    const video = Object.assign(media(60, true), { duration: 60 });
+    syncVideoToAudio(video, media(30, false));
+    expect(video.currentTime).toBe(30);
+    expect(video.play).toHaveBeenCalled();
+  });
+
   it("swallows autoplay rejections", async () => {
     const video = media(0, true);
     (video.play as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("no"));
