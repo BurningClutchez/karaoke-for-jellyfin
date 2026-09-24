@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
 import { getZipAudioSource } from "@/services/cdg/zipAudio";
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +33,7 @@ export async function GET(
 
     const fetchHeaders: Record<string, string> = {
       ...(zipSource?.headers ?? {
-        "X-Emby-Token": process.env.JELLYFIN_API_KEY || "",
+        Authorization: mediaBrowserToken(process.env.JELLYFIN_API_KEY || ""),
       }),
       "User-Agent": "Karaoke-For-Jellyfin/1.0",
     };

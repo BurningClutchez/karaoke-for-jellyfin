@@ -1,4 +1,5 @@
 // Authentication and library discovery for the Jellyfin SDK service
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 interface VirtualFolder {
   CollectionType?: string;
@@ -21,7 +22,7 @@ export async function fetchMusicLibraryId(
     const response = await fetch(`${baseUrl}/Library/VirtualFolders`, {
       method: "GET",
       headers: {
-        "X-Emby-Token": apiKey,
+        Authorization: mediaBrowserToken(apiKey),
         "Content-Type": "application/json",
       },
     });
@@ -59,7 +60,7 @@ export async function authenticateUser(
     const response = await fetch(`${baseUrl}/Users`, {
       method: "GET",
       headers: {
-        "X-Emby-Token": apiKey,
+        Authorization: mediaBrowserToken(apiKey),
         "Content-Type": "application/json",
       },
     });
@@ -109,7 +110,7 @@ export async function checkHealth(
     const response = await fetch(`${baseUrl}/System/Info`, {
       method: "GET",
       headers: {
-        "X-Emby-Token": apiKey,
+        Authorization: mediaBrowserToken(apiKey),
         "Content-Type": "application/json",
       },
     });

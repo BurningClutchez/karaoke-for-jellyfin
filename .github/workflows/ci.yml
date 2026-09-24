@@ -48,6 +48,9 @@ jobs:
           echo "JELLYFIN_API_KEY=${{ secrets.JELLYFIN_API_KEY }}" >> .env.local
           echo "JELLYFIN_USERNAME=${{ secrets.JELLYFIN_USERNAME }}" >> .env.local
 
+      - name: Check Jellyfin connection
+        run: node scripts/check-jellyfin.js
+
       - name: Acceptance tests (headless)
         run: npx bddgen && npx playwright test --project=single-user --project=multi-user
 

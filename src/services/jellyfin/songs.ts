@@ -6,6 +6,7 @@ import type {
   JellyfinSearchResponse,
 } from "./types";
 import { transformMediaItems, transformMediaItem } from "./transforms";
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 /**
  * Get all songs by a specific artist ID
@@ -33,7 +34,7 @@ export async function getSongsByArtistId(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
-          "X-Emby-Token": ctx.apiKey,
+          Authorization: mediaBrowserToken(ctx.apiKey),
           "Content-Type": "application/json",
         },
       }
@@ -75,7 +76,7 @@ export async function getAllAudioItems(
 
     const response = await fetch(url, {
       headers: {
-        "X-Emby-Token": ctx.apiKey,
+        Authorization: mediaBrowserToken(ctx.apiKey),
         "Content-Type": "application/json",
       },
     });
@@ -104,7 +105,7 @@ export async function getMediaMetadata(
       `${ctx.baseUrl}/Items/${itemId}?userId=${ctx.userId}&fields=Artists,Album,RunTimeTicks`,
       {
         headers: {
-          "X-Emby-Token": ctx.apiKey,
+          Authorization: mediaBrowserToken(ctx.apiKey),
           "Content-Type": "application/json",
         },
       }

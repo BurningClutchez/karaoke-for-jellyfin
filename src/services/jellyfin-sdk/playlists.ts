@@ -3,6 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { MediaItem, Playlist } from "@/types";
 import { JellyfinContext } from "./types";
 import { transformMediaItems, transformPlaylists } from "./transformers";
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 /**
  * Get all music playlists from Jellyfin
@@ -29,7 +30,7 @@ export async function getPlaylists(
   const response = await fetch(playlistsUrl, {
     method: "GET",
     headers: {
-      "X-Emby-Token": ctx.apiKey,
+      Authorization: mediaBrowserToken(ctx.apiKey),
       "Content-Type": "application/json",
     },
   });
@@ -72,7 +73,7 @@ export async function getPlaylistItems(
   const response = await fetch(playlistItemsUrl, {
     method: "GET",
     headers: {
-      "X-Emby-Token": ctx.apiKey,
+      Authorization: mediaBrowserToken(ctx.apiKey),
       "Content-Type": "application/json",
     },
   });

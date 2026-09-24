@@ -6,6 +6,7 @@ import type {
   JellyfinSearchResponse,
 } from "./types";
 import { transformAlbums, transformMediaItems } from "./transforms";
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 /**
  * Search for albums by name
@@ -41,7 +42,7 @@ export async function searchAlbums(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
-          "X-Emby-Token": ctx.apiKey,
+          Authorization: mediaBrowserToken(ctx.apiKey),
           "Content-Type": "application/json",
         },
       }
@@ -98,7 +99,7 @@ export async function getSongsByAlbumId(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
-          "X-Emby-Token": ctx.apiKey,
+          Authorization: mediaBrowserToken(ctx.apiKey),
           "Content-Type": "application/json",
         },
       }

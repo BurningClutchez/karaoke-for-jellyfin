@@ -91,7 +91,7 @@ describe("GET /api/debug/stream-test", () => {
       {
         method: "HEAD",
         headers: {
-          "X-Emby-Token": "test-api-key",
+          Authorization: 'MediaBrowser Token="test-api-key"',
           "User-Agent": "Karaoke-For-Jellyfin/1.0",
         },
       }
@@ -182,7 +182,7 @@ describe("GET /api/debug/stream-test", () => {
       expect.any(String),
       expect.objectContaining({
         headers: expect.objectContaining({
-          "X-Emby-Token": "",
+          Authorization: 'MediaBrowser Token=""',
         }),
       })
     );

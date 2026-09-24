@@ -1,6 +1,7 @@
 // Debug API route to check Jellyfin libraries and connection
 import { NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 export async function GET() {
   try {
@@ -23,7 +24,7 @@ export async function GET() {
       `${process.env.JELLYFIN_SERVER_URL}/Items?recursive=true&limit=10&userId=${(jellyfinService as any).userId}&fields=Type,MediaType`,
       {
         headers: {
-          "X-Emby-Token": process.env.JELLYFIN_API_KEY!,
+          Authorization: mediaBrowserToken(process.env.JELLYFIN_API_KEY!),
           "Content-Type": "application/json",
         },
       }

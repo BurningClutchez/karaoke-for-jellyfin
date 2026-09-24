@@ -1,6 +1,7 @@
 // Debug endpoint to test stream URLs
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
+import { mediaBrowserToken } from "@/lib/jellyfinAuth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     const testResponse = await fetch(streamUrl, {
       method: "HEAD", // Just check headers, don't download content
       headers: {
-        "X-Emby-Token": process.env.JELLYFIN_API_KEY || "",
+        Authorization: mediaBrowserToken(process.env.JELLYFIN_API_KEY || ""),
         "User-Agent": "Karaoke-For-Jellyfin/1.0",
       },
     });
