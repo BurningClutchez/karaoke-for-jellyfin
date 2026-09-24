@@ -36,6 +36,7 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
           timeUpdateInterval: 2000,
           ratingAnimationDuration: 15000,
           nextSongDuration: 15000,
+          cdgMode: "auto",
         });
       });
   }, []);
@@ -51,6 +52,7 @@ export function ConfigProvider({ children }: ConfigProviderProps) {
           timeUpdateInterval: 2000,
           ratingAnimationDuration: 15000,
           nextSongDuration: 15000,
+          cdgMode: "auto",
         }}
       >
         {children}

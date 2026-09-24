@@ -11,20 +11,21 @@ A karaoke app that streams music from a Jellyfin media server. Two interfaces: a
 
 ## Key Paths
 
-| Area                                     | Path                                     |
-| ---------------------------------------- | ---------------------------------------- |
-| Custom server (WebSocket + queue logic)  | `server.js` (1100 lines — the "backend") |
-| API routes (REST for queue, songs, etc.) | `src/app/api/`                           |
-| TV display page                          | `src/app/tv/page.tsx`                    |
-| Mobile entry page                        | `src/app/page.tsx`                       |
-| TV components                            | `src/components/tv/`                     |
-| Mobile components                        | `src/components/mobile/`                 |
-| Hooks                                    | `src/hooks/`                             |
-| Services (Jellyfin SDK, lyrics, search)  | `src/services/`                          |
-| Shared types                             | `src/types/index.ts`                     |
-| E2E features (Gherkin)                   | `e2e/features/`                          |
-| E2E step definitions                     | `e2e/steps/`                             |
-| Unit tests                               | `__tests__/`                             |
+| Area                                     | Path                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| Custom server (WebSocket + queue logic)  | `server.js` (1100 lines — the "backend")                                    |
+| API routes (REST for queue, songs, etc.) | `src/app/api/`                                                              |
+| TV display page                          | `src/app/tv/page.tsx`                                                       |
+| Mobile entry page                        | `src/app/page.tsx`                                                          |
+| TV components                            | `src/components/tv/`                                                        |
+| Mobile components                        | `src/components/mobile/`                                                    |
+| Hooks                                    | `src/hooks/`                                                                |
+| Services (Jellyfin SDK, lyrics, search)  | `src/services/`                                                             |
+| Shared types                             | `src/types/index.ts`                                                        |
+| CD+G graphics (decoder, lookup, plugin)  | `src/lib/cdg/`, `src/services/cdg/`, `jellyfin-plugin/` — see `docs/CDG.md` |
+| E2E features (Gherkin)                   | `e2e/features/`                                                             |
+| E2E step definitions                     | `e2e/steps/`                                                                |
+| Unit tests                               | `__tests__/`                                                                |
 
 ## Environment
 

@@ -16,3 +16,6 @@ Dockerfile
 test-results/
 .features-gen/
 playwright-report/
+jellyfin-plugin/**/bin/
+jellyfin-plugin/**/obj/
+jellyfin-plugin/artifacts/

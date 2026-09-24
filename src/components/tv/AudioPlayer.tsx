@@ -1,5 +1,6 @@
 "use client";
 
+import { RefObject, useCallback } from "react";
 import { QueueItem, PlaybackState, PlaybackCommand } from "@/types";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
@@ -9,6 +10,8 @@ interface AudioPlayerProps {
   onPlaybackControl: (command: PlaybackCommand) => void;
   onSongEnded: () => void;
   onTimeUpdate: (currentTime: number) => void;
+  /** Receives the audio element so other views (CDG graphics) can follow its clock */
+  mediaRef?: RefObject<HTMLMediaElement | null>;
 }
 
 export function AudioPlayer({
@@ -16,6 +19,7 @@ export function AudioPlayer({
   playbackState,
   onSongEnded,
   onTimeUpdate,
+  mediaRef,
 }: AudioPlayerProps) {
   const { audioRef, error } = useAudioPlayer({
     song,
@@ -24,10 +28,18 @@ export function AudioPlayer({
     onTimeUpdate,
   });
 
+  const setAudioElement = useCallback(
+    (element: HTMLAudioElement | null) => {
+      audioRef.current = element;
+      if (mediaRef) mediaRef.current = element;
+    },
+    [audioRef, mediaRef]
+  );
+
   return (
     <>
       <audio
-        ref={audioRef}
+        ref={setAudioElement}
         data-testid="audio-player"
         aria-label="Karaoke audio player"
         preload="auto"

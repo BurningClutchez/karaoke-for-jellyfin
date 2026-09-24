@@ -68,6 +68,7 @@ Mobile-optimized host controls for managing the karaoke session.
 
 - **Mobile Interface**: Search and queue songs from your phone
 - **TV Display**: Full-screen lyrics display and playback control
+- **CD+G Karaoke Graphics**: Plays `.cdg` graphics that sit next to your MP3s ([setup](docs/CDG.md))
 - **Admin Interface**: Comprehensive host controls for session management
 - **Jellyfin Integration**: Leverages your existing Jellyfin media library
 - **Real-time Sync**: WebSocket-based real-time updates between devices
@@ -106,10 +107,20 @@ services:
       - QUEUE_AUTOPLAY_DELAY=${QUEUE_AUTOPLAY_DELAY:-1000}
       - TIME_UPDATE_INTERVAL=${TIME_UPDATE_INTERVAL:-2000}
 
+      # OPTIONAL CD+G karaoke graphics (see docs/CDG.md)
+      # auto | canvas | video | off
+      - CDG_MODE=${CDG_MODE:-auto}
+      # Option A: read .cdg files from a read-only mount of the music library
+      # - CDG_LOCAL_ROOT=/music
+      # - CDG_JELLYFIN_ROOT=/media/music
+
       # System Configuration
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+    # OPTIONAL: mount the music library read-only for CD+G graphics (option A)
+    # volumes:
+    #   - /path/to/music:/music:ro
     restart: always
 networks: {}
 

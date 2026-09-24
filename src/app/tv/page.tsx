@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useTVDisplay } from "@/hooks/useTVDisplay";
 import { QueuePreview } from "@/components/tv/QueuePreview";
 import { HostControls } from "@/components/tv/HostControls";
@@ -17,6 +18,7 @@ import { useConfig } from "@/contexts/ConfigContext";
 
 export default function TVDisplay() {
   const config = useConfig();
+  const audioElementRef = useRef<HTMLMediaElement | null>(null);
   const {
     isClient,
     isConnected,
@@ -97,6 +99,7 @@ export default function TVDisplay() {
         config={config}
         onRatingComplete={handleRatingComplete}
         onNextSongComplete={handleNextSongComplete}
+        audioRef={audioElementRef}
       />
 
       {showQueuePreview && (
@@ -127,15 +130,13 @@ export default function TVDisplay() {
         onPlaybackControl={playbackControl}
         onSongEnded={handleSongEnded}
         onTimeUpdate={handleTimeUpdate}
+        mediaRef={audioElementRef}
       />
-
       <ApplausePlayer
         isPlaying={transitionState.displayState === "applause"}
         volume={60}
       />
-
       <NextUpSidebar queue={queue} currentSong={currentSong} />
-
       <FloatingReactions reactions={reactions} />
 
       <div className="absolute bottom-4 left-4 text-gray-500 text-sm">

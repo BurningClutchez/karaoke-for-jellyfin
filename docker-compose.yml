@@ -18,9 +18,19 @@ services:
       - QUEUE_AUTOPLAY_DELAY=${QUEUE_AUTOPLAY_DELAY:-1000}
       - TIME_UPDATE_INTERVAL=${TIME_UPDATE_INTERVAL:-2000}
 
+      # OPTIONAL CD+G karaoke graphics (see docs/CDG.md)
+      # auto | canvas | video | off
+      - CDG_MODE=${CDG_MODE:-auto}
+      # Option A: read .cdg files from a read-only mount of the music library
+      # - CDG_LOCAL_ROOT=/music
+      # - CDG_JELLYFIN_ROOT=/media/music
+
       # System Configuration
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+    # OPTIONAL: mount the music library read-only for CD+G graphics (option A)
+    # volumes:
+    #   - /path/to/music:/music:ro
     restart: always
 networks: {}
