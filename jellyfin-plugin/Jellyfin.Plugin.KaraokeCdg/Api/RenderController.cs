@@ -74,10 +74,20 @@ public class RenderController : ControllerBase
     /// <returns>The task status.</returns>
     [HttpPost("Start")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
-    public ActionResult<RenderStatus> Start()
+    public async Task<ActionResult<RenderStatus>> Start()
     {
         _taskManager.QueueIfNotRunning<RenderKaraokeVideosTask>();
-        return Accepted(GetStatus().Value);
+
+        // The task manager starts the task in the background; wait briefly so the settings
+        // page sees it running and starts showing progress
+        var status = GetStatus().Value!;
+        for (var i = 0; i < 20 && status.State == "Idle"; i++)
+        {
+            await Task.Delay(100).ConfigureAwait(false);
+            status = GetStatus().Value!;
+        }
+
+        return Accepted(status);
     }
 
     /// <summary>
