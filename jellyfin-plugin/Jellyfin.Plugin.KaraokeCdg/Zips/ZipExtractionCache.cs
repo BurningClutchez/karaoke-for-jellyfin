@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text.Json;
+using Jellyfin.Plugin.KaraokeCdg.Cache;
 using MediaBrowser.Common.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -19,11 +19,10 @@ public sealed record ExtractedSong(string AudioPath, string CdgPath);
 /// </summary>
 public sealed class ZipExtractionCache
 {
-    private const string RecentLogName = "recent.json";
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new(StringComparer.Ordinal);
     private readonly IApplicationPaths _applicationPaths;
     private readonly ILogger<ZipExtractionCache> _logger;
-    private readonly Lock _logLock = new();
+    private readonly RecentUseLog _recent;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ZipExtractionCache"/> class.
@@ -34,6 +33,7 @@ public sealed class ZipExtractionCache
     {
         _applicationPaths = applicationPaths;
         _logger = logger;
+        _recent = new RecentUseLog(() => Root);
     }
 
     /// <summary>
@@ -174,40 +174,12 @@ public sealed class ZipExtractionCache
     /// Gets extraction folder names, most recently used first.
     /// </summary>
     /// <returns>The folder names.</returns>
-    public IReadOnlyList<string> ReadRecent()
-    {
-        lock (_logLock)
-        {
-            return ReadRecentUnlocked();
-        }
-    }
-
-    private List<string> ReadRecentUnlocked()
-    {
-        try
-        {
-            var path = Path.Combine(Root, RecentLogName);
-            return File.Exists(path)
-                ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(path)) ?? []
-                : [];
-        }
-        catch (Exception ex) when (ex is IOException or JsonException)
-        {
-            return [];
-        }
-    }
+    public IReadOnlyList<string> ReadRecent() => _recent.Read();
 
     private void MarkUsed(string name, string folder)
     {
         // The folder's timestamp is its "last used" time for the retention rule
         Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow);
-        var limit = Math.Max(Plugin.Instance?.Configuration.KeepRecentCount ?? 100, 0);
-        lock (_logLock)
-        {
-            var recent = ReadRecentUnlocked().Where(entry => entry != name).Prepend(name).Take(limit).ToList();
-            var path = Path.Combine(Root, RecentLogName);
-            File.WriteAllText(path + ".partial", JsonSerializer.Serialize(recent));
-            File.Move(path + ".partial", path, overwrite: true);
-        }
+        _recent.MarkUsed(name, Plugin.Instance?.Configuration.KeepRecentCount ?? 100);
     }
 }

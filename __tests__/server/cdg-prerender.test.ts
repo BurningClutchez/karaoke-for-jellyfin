@@ -13,11 +13,11 @@ const env = {
 const song = { jellyfinId: "abc123" };
 
 describe("shouldPrerender", () => {
-  it("is on by default only in video mode", () => {
+  it("is on by default unless graphics are off", () => {
     expect(shouldPrerender({ CDG_MODE: "video" })).toBe(true);
-    expect(shouldPrerender({ CDG_MODE: "VIDEO" })).toBe(true);
-    expect(shouldPrerender({ CDG_MODE: "auto" })).toBe(false);
-    expect(shouldPrerender({})).toBe(false);
+    expect(shouldPrerender({ CDG_MODE: "auto" })).toBe(true);
+    expect(shouldPrerender({})).toBe(true);
+    expect(shouldPrerender({ CDG_MODE: "OFF" })).toBe(false);
   });
 
   it("can be forced on or off", () => {
@@ -47,7 +47,7 @@ describe("prerenderCdgVideo", () => {
   it("skips when disabled, unconfigured or given a bad item", async () => {
     const fetchImpl = vi.fn();
     const cases: [unknown, Record<string, string>][] = [
-      [song, { ...env, CDG_MODE: "auto" }],
+      [song, { ...env, CDG_MODE: "off" }],
       [song, { ...env, JELLYFIN_SERVER_URL: "" }],
       [{ jellyfinId: "../x" }, env],
       [{}, env],

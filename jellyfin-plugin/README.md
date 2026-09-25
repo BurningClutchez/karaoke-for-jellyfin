@@ -1,108 +1,100 @@
 # Karaoke CDG Jellyfin plugin
 
-A Jellyfin plugin for `.cdg` karaoke songs, either an audio file with a `.cdg` file of the same name next to it, or a zip holding one of each. It does three things:
+A Jellyfin plugin for `.cdg` karaoke songs: an audio file with a `.cdg` file of the same name next to it, or a zip holding one of each. It:
 
-- Adds a **Karaoke channel** to Jellyfin's own apps. Each song with graphics plays there as a video, with the graphics and the song's audio together.
-- Serves the graphics to [Karaoke for Jellyfin](../docs/CDG.md) (options B and C).
-- Makes **zipped karaoke songs** searchable and playable without unzipping your collection.
+- adds a **Karaoke channel** to Jellyfin's own apps, where each song plays as a video with its graphics;
+- serves the graphics to [Karaoke for Jellyfin](../docs/CDG.md) (options B and C);
+- makes **zipped karaoke songs** searchable and playable without unzipping your collection.
+
+## Install
+
+1. Build the DLL (see [Build](#build)), or download it from the "Jellyfin plugin" GitHub workflow.
+2. Create a folder named `KaraokeCdg_1.0.0.0` in Jellyfin's plugin directory (Docker: `/config/plugins/`, Linux: `/var/lib/jellyfin/plugins/`, Windows: `%ProgramData%\Jellyfin\Server\plugins\`) and copy `Jellyfin.Plugin.KaraokeCdg.dll` into it.
+3. Restart Jellyfin. **Karaoke CDG** appears under **Dashboard → Plugins**, and **Karaoke** under Channels.
+
+The plugin targets Jellyfin 12.1. After a major Jellyfin upgrade, update the `Jellyfin.Controller` and `Jellyfin.Model` versions in the `.csproj` and rebuild.
+
+## Settings
+
+Open **Dashboard → Plugins → Karaoke CDG**. Invalid values are logged as warnings and listed by `/Karaoke/Status`.
+
+| Setting                                   | Default                       | What it does                                                                                    |
+| ----------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| Show the Karaoke channel                  | on                            | Shows or hides the channel in Jellyfin's apps                                                   |
+| Render videos for Karaoke for Jellyfin    | on                            | Lets `/Karaoke/Video` run ffmpeg. Off serves raw CDG files only                                 |
+| Video folder                              | `<cache>/karaoke-cdg`         | Where rendered videos are cached                                                                |
+| Keep unplayed videos for (days)           | 30                            | Videos not played for this long are deleted. 0 keeps them forever                               |
+| Always keep recently played videos        | 100                           | The most recently played videos are never deleted                                               |
+| Zip folders                               | every music library           | Folders searched for karaoke zips                                                               |
+| Placeholder folder                        | `<data>/karaoke-placeholders` | Where placeholders for zipped songs go                                                          |
+| Put placeholders next to each zip         | off                           | Writes `<zip name>.mp3` next to each zip instead                                                |
+| Create a Karaoke library                  | on                            | Adds a "Karaoke" music library for the placeholder folder                                       |
+| Watch zip folders                         | off                           | Makes placeholders ~30 s after a new zip appears. After a restart; unreliable on network shares |
+| Extraction folder                         | `<cache>/karaoke-zips`        | Where zips are extracted when a song is used                                                    |
+| Keep unused extracted songs for (hours)   | 24                            | Extracted songs not used for this long are deleted                                              |
+| Always keep recently used extracted songs | 100                           | The most recently used extracted songs are never deleted                                        |
+
+The settings are stored in `plugins/configurations/Jellyfin.Plugin.KaraokeCdg.xml` under the names used in `PluginConfiguration.cs`.
 
 ## Karaoke channel
 
-After installing the plugin, **Karaoke** appears under Channels in Jellyfin's apps. The channel contains one folder per artist, and each song inside is a video:
+Each song in the channel is a 900×648 H.264 video with 192 kbps AAC audio, about 7 MB for a 4-minute song. Songs are grouped into one folder per artist, and users only see songs from libraries they can access.
 
-- **Rendering:** the video is rendered by Jellyfin's ffmpeg the first time the song is played. That takes around 10–15 seconds for a 4-minute song on a 4-core CPU, and the client waits for it. After that it's served from the cache like any other video file, so direct play, seeking and transcoding work normally.
-- **Rendering ahead:** to avoid the first-play wait, run **Dashboard → Scheduled Tasks → Karaoke → Render karaoke videos**. It renders every karaoke song. It has no schedule by default, because rendering a large library takes a while. Budget roughly 10–15 seconds per song on a 4-core CPU.
-- **Who sees it:** users only see songs from libraries they can access. Access to the channel itself is managed like any other channel, under each user's settings.
-- **New songs:** these appear within about 10 minutes of a library scan, or immediately after running the render task.
+A song's video is rendered by Jellyfin's ffmpeg the first time it's played, which takes around 10–15 seconds on a 4-core CPU. After that it plays from the cache like any other video. New songs appear within about 10 minutes of a library scan.
 
-The videos are 900×648 H.264 with 192 kbps AAC audio. A 4-minute song is about 7 MB, mostly audio, because the graphics repeat the same frame most of the time. Rendered files live in Jellyfin's cache folder under `karaoke-cdg/`.
+The first time the channel lists a song that hasn't been rendered, Jellyfin logs one harmless `Error in Probe Provider` for it.
 
-The first time the channel lists a song whose video hasn't been rendered, Jellyfin logs one `Error in Probe Provider` for it. This happens because Jellyfin probes new items straight away, before the video exists. It's harmless, doesn't repeat, and doesn't happen for songs that have already been rendered.
+## Rendering every song ahead
+
+To avoid the first-play wait, click **Render karaoke videos** at the top of the plugin's settings page:
+
+1. A **Calculating…** dialog appears while the plugin lists the karaoke songs and checks which are already rendered.
+2. A confirmation then shows the songs to render, the **estimated time**, the **estimated storage**, the temporary space for extracting zips, and the free space. It warns if the space may not be enough.
+3. Rendering starts only when you confirm. A progress bar shows how far it has got, and **Stop rendering** cancels it; finished videos are kept.
+
+Estimates start from typical figures (12 s and 7 MB per 4-minute song on a 4-core CPU) and switch to this server's own measurements once it has rendered about 10 minutes of songs. Rendering keeps the CPU busy, so playback and transcoding may be slower meanwhile.
+
+The task is hidden from **Scheduled Tasks** so it can't be started without this confirmation.
+
+## Video cache
+
+Rendered videos are cached like extracted zips. The hourly **Clean up karaoke cache** task deletes a video that hasn't been played for 30 days, unless it's among the 100 most recently played. A deleted video is rendered again when next needed. Set **Keep unplayed videos for** to 0 to keep every video, for example after rendering the whole library.
 
 ## Zipped karaoke songs
 
-Jellyfin ignores `.zip` files, so the plugin gives each karaoke zip a **placeholder**:
+Jellyfin ignores `.zip` files, so the plugin gives each karaoke zip a **placeholder**: a silent MP3, as long as the song, with its title, artist and album (from the audio's tags, or from a zip name like `Artist - Title.zip`). Placeholders make zipped songs show up in searches and favorites; they are never played themselves.
 
-- **What it is:** a silent MP3, the same length as the song, carrying the song's title, artist and album. Titles and artists come from the audio's tags, or from the zip's name ("Artist - Title.zip" or "DISC-01 - Artist - Title.zip") when it has none.
-- **Size:** about 60 KB per minute of song.
-- **Why it matters:** because of the placeholder, zipped songs show up in searches and favorites like any other song.
+When a zipped song is queued in Karaoke for Jellyfin, or played in the channel, its zip is extracted into the extraction folder and the real files are used. Extracting takes under a second.
 
-When a song is queued in Karaoke for Jellyfin, or played in the Karaoke channel, its zip is extracted into a temporary folder and the real audio and graphics are used. The placeholder itself is never played.
-
-**Which zips count:** a zip is used when it contains exactly one `.cdg` file and one audio file (MP3, M4A, AAC, OGG, Opus, FLAC, WAV or WMA). macOS `__MACOSX` clutter is ignored. Other zips are left alone. Files are always extracted under fixed names, so a zip can't write anywhere else, and entries over 500 MB are refused.
-
-**When placeholders are made for new zips:**
-
-- after every Jellyfin library scan;
-- by the **Create karaoke placeholders** task, hourly by default, and on demand from **Dashboard → Scheduled Tasks → Karaoke**;
-- within about 30 seconds, if `WatchZipFolders` is on. This is off by default, because network shares often don't report new files.
-
-Each pass only processes new or changed zips, so passes over an unchanged collection take seconds. The first pass reads every zip, at roughly 1–1.5 s each for a 4-minute song (about 25–40 minutes per 1,000 zips).
-
-**Keeping placeholders in step:**
-
-- If a zip is deleted, its placeholder is removed.
-- If a zip changes, its placeholder is rebuilt.
-- If a whole zip folder is missing, as with a disconnected NAS, nothing is removed.
-- Changed folders are refreshed straight away, without a full library scan.
-
-**Where placeholders go:** by default, into `karaoke-placeholders` in Jellyfin's data folder. The plugin adds a **Karaoke** music library for that folder automatically. Keeping them out of your music library matters because a placeholder played in Jellyfin's normal music player is silent. With `PlaceholdersNextToZips` they're written next to each zip instead, named `<zip name>.mp3`. A real file already at that path is never overwritten. Changing this setting moves the existing placeholders on the next pass. After switching to next-to-zips, you can remove the empty Karaoke library.
-
-**Temporary folder:**
-
-- **Location:** `karaoke-zips` in Jellyfin's cache folder, or `ExtractFolder`.
-- **Cleanup:** the **Clean up extracted karaoke zips** task runs hourly. It deletes a song once it hasn't been used for `ExtractRetentionHours` (default 24), unless it's among the `KeepRecentCount` (default 100) most recently used songs, which are listed in `recent.json` in that folder.
-- **Re-extraction:** a deleted song is extracted again, in under a second, the next time it's used.
-- **Note:** running **Render karaoke videos** extracts every zipped song, so they all count as recently used.
+- **Which zips count:** exactly one `.cdg` file and one audio file (MP3, M4A, AAC, OGG, Opus, FLAC, WAV or WMA). `__MACOSX` clutter is ignored, files are extracted under fixed names, and entries over 500 MB are refused.
+- **When placeholders are made:** after every library scan, by the hourly **Create karaoke placeholders** task, and within about 30 seconds if **Watch zip folders** is on. Only new or changed zips are read; the first pass takes about 1–1.5 s per zip.
+- **Keeping in step:** deleted zips lose their placeholder and changed zips get a new one. If a whole zip folder is missing, as with a disconnected NAS, nothing is removed.
+- **Where placeholders go:** by default into their own folder, with its own Karaoke library, because a placeholder played in Jellyfin's music player is silent.
 
 ## Endpoints
 
-All endpoints require a Jellyfin API key or user token, sent as `Authorization: MediaBrowser Token="<token>"`. From Jellyfin 12, the older `X-Emby-Token` header and `api_key` parameter are rejected unless **Enable legacy authorization** is turned on.
+All endpoints need a Jellyfin API key or user token in `Authorization: MediaBrowser Token="<token>"`. Jellyfin 12 rejects the older `X-Emby-Token` header and `api_key` parameter unless legacy authorization is on.
 
-| Endpoint                                    | Returns                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /Karaoke/Cdg/{itemId}`                 | The raw `.cdg` file (option B), from next to the audio item or from the zip behind a placeholder, or 404                                                                                                                                                                                                                                                                                                             |
-| `GET /Karaoke/Video/{itemId}[?format=webm]` | The graphics rendered to a silent 900×648 video with Jellyfin's ffmpeg (option C): H.264 MP4 by default, or VP9 WebM with `format=webm` for browsers that can't play H.264. Cached under `<cache>/karaoke-cdg/`. Repeated frames are dropped, so a typical song renders in a few seconds. Supports range requests. The first request waits for the render; Karaoke for Jellyfin can request it when a song is queued |
-| `GET /Karaoke/Prepare/{itemId}`             | Extracts a zipped song ahead of use and returns `{"ZipBacked": bool, "HasCdg": bool}`. Karaoke for Jellyfin calls it when a song is queued                                                                                                                                                                                                                                                                           |
-| `GET /Karaoke/Audio/{itemId}`               | The real audio of a zipped song (its item is a silent placeholder). Supports range requests. 404 for other items                                                                                                                                                                                                                                                                                                     |
-| `GET /Karaoke/Status`                       | Plugin version, whether ffmpeg was found, placeholder and extracted-song counts, and settings warnings. Used by Karaoke for Jellyfin's `/api/health`                                                                                                                                                                                                                                                                 |
+| Endpoint                                    | Returns                                                                                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /Karaoke/Cdg/{itemId}`                 | The raw `.cdg` file (option B), or 404                                                                                                     |
+| `GET /Karaoke/Video/{itemId}[?format=webm]` | The graphics as a silent 900×648 video (option C): H.264 MP4, or VP9 WebM. Rendered on first request, then cached. Supports range requests |
+| `GET /Karaoke/Prepare/{itemId}`             | Extracts a zipped song ahead of use; returns `{"ZipBacked": bool, "HasCdg": bool}`                                                         |
+| `GET /Karaoke/Audio/{itemId}`               | The real audio of a zipped song. Supports range requests                                                                                   |
+| `GET /Karaoke/Status`                       | Version, ffmpeg found, placeholder and extracted-song counts, settings warnings                                                            |
+| `GET /Karaoke/Render/Estimate`              | Admins: songs to render, estimated seconds and bytes, temporary bytes, free space                                                          |
+| `POST /Karaoke/Render/Start`                | Admins: starts rendering every song ahead                                                                                                  |
+| `GET /Karaoke/Render/Status`                | Admins: render state and progress                                                                                                          |
+| `POST /Karaoke/Render/Cancel`               | Admins: stops the render                                                                                                                   |
 
-`{itemId}` must be an audio item. For a song that isn't zipped, the plugin looks for `Name.cdg`, `Name.CDG` or `Name.Cdg` next to `Name.<ext>`.
+`{itemId}` must be an audio item. For songs that aren't zipped, the plugin looks for `Name.cdg`, `Name.CDG` or `Name.Cdg` next to `Name.<ext>`.
 
 ## Build
 
-The plugin needs the .NET 10 SDK and targets Jellyfin 12.1:
+Needs the .NET 10 SDK:
 
 ```bash
 dotnet publish Jellyfin.Plugin.KaraokeCdg -c Release -o artifacts
 ```
 
 The GitHub workflow `.github/workflows/jellyfin-plugin.yml` builds the same DLL and uploads it as an artifact.
-
-## Install
-
-1. Create a folder named `KaraokeCdg_1.0.0.0` in Jellyfin's plugin directory:
-   - Docker: `/config/plugins/`
-   - Linux: `/var/lib/jellyfin/plugins/`
-   - Windows: `%ProgramData%\Jellyfin\Server\plugins\`
-2. Copy `Jellyfin.Plugin.KaraokeCdg.dll` into it.
-3. Restart Jellyfin. **Karaoke CDG** appears under Dashboard → Plugins, and **Karaoke** appears under Channels.
-
-Jellyfin only loads plugins built for its version. After a major Jellyfin upgrade, update the `Jellyfin.Controller` and `Jellyfin.Model` versions in the `.csproj` and rebuild. Until then, the Karaoke channel is missing and Karaoke for Jellyfin falls back to lyrics.
-
-## Settings
-
-All are set in the plugin's XML configuration (`plugins/configurations/Jellyfin.Plugin.KaraokeCdg.xml`). Invalid values (negative numbers, missing zip folders, an extraction folder inside a zip folder) are logged as warnings when the settings load or change, and listed by `/Karaoke/Status`.
-
-| Setting                  | Default   | What it does                                                                                             |
-| ------------------------ | --------- | -------------------------------------------------------------------------------------------------------- |
-| `EnableChannel`          | `true`    | Shows or hides the Karaoke channel                                                                       |
-| `EnableVideo`            | `true`    | Lets `/Karaoke/Video` run ffmpeg. Set to `false` to serve raw CDG files only. The channel isn't affected |
-| `PlaceholderFolder`      | _(empty)_ | Folder for placeholders. Empty means `karaoke-placeholders` in Jellyfin's data folder                    |
-| `PlaceholdersNextToZips` | `false`   | Write placeholders next to each zip, in the music library, instead                                       |
-| `CreateKaraokeLibrary`   | `true`    | Add a "Karaoke" music library for the placeholder folder if no library contains it                       |
-| `ZipFolders`             | _(empty)_ | Folders to search for zips. Empty means every music library                                              |
-| `ExtractFolder`          | _(empty)_ | Temporary folder for extracted zips. Empty means `karaoke-zips` in Jellyfin's cache folder               |
-| `ExtractRetentionHours`  | `24`      | Hours an extracted song is kept after its last use                                                       |
-| `KeepRecentCount`        | `100`     | Most recently used extracted songs that are always kept                                                  |
-| `WatchZipFolders`        | `false`   | Watch the zip folders and make placeholders about 30 s after a change. Takes effect after a restart      |

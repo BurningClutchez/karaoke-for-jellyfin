@@ -1,6 +1,7 @@
 using Jellyfin.Plugin.KaraokeCdg.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
+using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Microsoft.Extensions.Logging;
 
@@ -9,7 +10,7 @@ namespace Jellyfin.Plugin.KaraokeCdg;
 /// <summary>
 /// Serves CD+G karaoke graphics that sit next to audio files in the library.
 /// </summary>
-public class Plugin : BasePlugin<PluginConfiguration>
+public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
@@ -42,6 +43,16 @@ public class Plugin : BasePlugin<PluginConfiguration>
     /// <inheritdoc />
     public override string Description =>
         "Serves .cdg karaoke graphics for audio files, raw or pre-rendered to video, for Karaoke for Jellyfin.";
+
+    /// <inheritdoc />
+    public IEnumerable<PluginPageInfo> GetPages() =>
+    [
+        new PluginPageInfo
+        {
+            Name = Name,
+            EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html",
+        },
+    ];
 
     private void LogSettingsWarnings(PluginConfiguration config)
     {

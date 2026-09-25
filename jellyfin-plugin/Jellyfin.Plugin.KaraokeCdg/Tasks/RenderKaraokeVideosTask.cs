@@ -6,9 +6,10 @@ namespace Jellyfin.Plugin.KaraokeCdg.Tasks;
 
 /// <summary>
 /// Renders the karaoke video of every song in the Karaoke channel ahead of time, so nothing
-/// waits for ffmpeg at play time. Runs only when started from the dashboard.
+/// waits for ffmpeg at play time. Hidden from Scheduled Tasks: it is started from the plugin's
+/// settings page, after a confirmation showing the estimated time and storage.
 /// </summary>
-public class RenderKaraokeVideosTask : IScheduledTask
+public class RenderKaraokeVideosTask : IScheduledTask, IConfigurableScheduledTask
 {
     private readonly KaraokeLibraryIndex _index;
     private readonly KaraokeSongRenderer _renderer;
@@ -38,6 +39,15 @@ public class RenderKaraokeVideosTask : IScheduledTask
 
     /// <inheritdoc />
     public string Category => "Karaoke";
+
+    /// <inheritdoc />
+    public bool IsHidden => true;
+
+    /// <inheritdoc />
+    public bool IsEnabled => true;
+
+    /// <inheritdoc />
+    public bool IsLogged => true;
 
     /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)

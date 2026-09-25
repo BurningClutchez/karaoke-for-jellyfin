@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Karaoke CDG</title>
+  </head>
+  <body>
+    <div
+      id="KaraokeCdgConfigPage"
+      data-role="page"
+      class="page type-interior pluginConfigurationPage"
+      data-require="emby-input,emby-button,emby-checkbox,emby-textarea"
+    >
+      <style>
+        #KaraokeCdgConfigPage dialog {
+          max-width: 32em;
+          border: 0;
+          border-radius: 0.5em;
+          padding: 1.5em;
+          background: #202020;
+          color: #fff;
+        }
+        #KaraokeCdgConfigPage dialog::backdrop {
+          background: rgba(0, 0, 0, 0.6);
+        }
+        #KaraokeCdgConfigPage dialog h2 {
+          margin-top: 0;
+        }
+        #KaraokeCdgConfigPage .karaokeFacts {
+          margin: 1em 0;
+          padding-left: 1.2em;
+          line-height: 1.6;
+        }
+        #KaraokeCdgConfigPage .karaokeWarning {
+          color: #ff8a80;
+          font-weight: bold;
+        }
+        #KaraokeCdgConfigPage .karaokeNote {
+          opacity: 0.75;
+          font-size: 0.9em;
+        }
+        #KaraokeCdgConfigPage .karaokeButtons {
+          display: flex;
+          gap: 0.5em;
+          justify-content: flex-end;
+          margin-top: 1.5em;
+        }
+        #KaraokeCdgConfigPage .karaokeSpinner {
+          width: 2em;
+          height: 2em;
+          margin: 0 auto 1em;
+          border: 0.25em solid rgba(255, 255, 255, 0.25);
+          border-top-color: #00a4dc;
+          border-radius: 50%;
+          animation: karaokeSpin 0.9s linear infinite;
+        }
+        @keyframes karaokeSpin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        #KaraokeCdgConfigPage progress {
+          width: 100%;
+        }
+      </style>
+      <div data-role="content">
+        <div class="content-primary">
+          <h2>Render karaoke videos</h2>
+          <p>
+            Renders every karaoke song in the Karaoke channel to video now, so
+            nobody waits for the first play. Videos already rendered are
+            skipped.
+          </p>
+          <div id="renderProgress" hidden>
+            <progress id="renderBar" max="100" value="0"></progress>
+            <p id="renderProgressText"></p>
+            <button
+              is="emby-button"
+              type="button"
+              id="cancelRenderButton"
+              class="raised emby-button"
+            >
+              <span>Stop rendering</span>
+            </button>
+          </div>
+          <p id="renderMessage" class="karaokeNote"></p>
+          <button
+            is="emby-button"
+            type="button"
+            id="renderButton"
+            class="raised button-submit emby-button"
+          >
+            <span>Render karaoke videos</span>
+          </button>
+
+          <form id="KaraokeCdgConfigForm">
+            <h2>Karaoke channel</h2>
+            <label class="checkboxContainer emby-checkbox-label"
+              ><input
+                id="EnableChannel"
+                type="checkbox"
+                is="emby-checkbox"
+              /><span>Show the Karaoke channel in Jellyfin's apps</span></label
+            >
+            <label class="checkboxContainer emby-checkbox-label"
+              ><input
+                id="EnableVideo"
+                type="checkbox"
+                is="emby-checkbox"
+              /><span
+                >Render videos for Karaoke for Jellyfin (turn off to serve raw
+                CDG files only)</span
+              ></label
+            >
+
+            <h2>Video cache</h2>
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="text"
+                id="VideoFolder"
+                label="Video folder"
+              />
+              <div class="fieldDescription">
+                Empty means karaoke-cdg in Jellyfin's cache folder.
+              </div>
+            </div>
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="number"
+                min="0"
+                id="VideoRetentionDays"
+                label="Keep unplayed videos for (days)"
+              />
+              <div class="fieldDescription">
+                0 keeps videos forever. Deleted videos are rendered again when
+                next played.
+              </div>
+            </div>
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="number"
+                min="0"
+                id="KeepRecentVideos"
+                label="Always keep this many recently played videos"
+              />
+            </div>
+
+            <h2>Zipped songs</h2>
+            <div class="inputContainer">
+              <textarea
+                is="emby-textarea"
+                id="ZipFolders"
+                rows="3"
+                label="Zip folders (one per line)"
+              ></textarea>
+              <div class="fieldDescription">
+                Empty means every music library.
+              </div>
+            </div>
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="text"
+                id="PlaceholderFolder"
+                label="Placeholder folder"
+              />
+              <div class="fieldDescription">
+                Empty means karaoke-placeholders in Jellyfin's data folder.
+              </div>
+            </div>
+            <label class="checkboxContainer emby-checkbox-label"
+              ><input
+                id="PlaceholdersNextToZips"
+                type="checkbox"
+                is="emby-checkbox"
+              /><span>Put placeholders next to each zip instead</span></label
+            >
+            <label class="checkboxContainer emby-checkbox-label"
+              ><input
+                id="CreateKaraokeLibrary"
+                type="checkbox"
+                is="emby-checkbox"
+              /><span
+                >Create a Karaoke library for the placeholder folder</span
+              ></label
+            >
+            <label class="checkboxContainer emby-checkbox-label"
+              ><input
+                id="WatchZipFolders"
+                type="checkbox"
+                is="emby-checkbox"
+              /><span
+                >Watch zip folders for new zips (after a restart; unreliable on
+                network shares)</span
+              ></label
+            >
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="text"
+                id="ExtractFolder"
+                label="Extraction folder"
+              />
+              <div class="fieldDescription">
+                Empty means karaoke-zips in Jellyfin's cache folder.
+              </div>
+            </div>
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="number"
+                min="0"
+                id="ExtractRetentionHours"
+                label="Keep unused extracted songs for (hours)"
+              />
+            </div>
+            <div class="inputContainer">
+              <input
+                is="emby-input"
+                type="number"
+                min="0"
+                id="KeepRecentCount"
+                label="Always keep this many recently used extracted songs"
+              />
+            </div>
+
+            <button
+              is="emby-button"
+              type="submit"
+              class="raised button-submit block emby-button"
+            >
+              <span>Save</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <dialog id="waitDialog">
+        <div class="karaokeSpinner"></div>
+        <h2>Calculating…</h2>
+        <p>
+          Counting karaoke songs and checking which videos are already rendered.
+          This can take a few seconds for a large library.
+        </p>
+      </dialog>
+
+      <dialog id="confirmDialog">
+        <h2 id="confirmTitle"></h2>
+        <ul id="confirmFacts" class="karaokeFacts"></ul>
+        <p id="confirmWarning" class="karaokeWarning" hidden></p>
+        <p id="confirmNotes" class="karaokeNote"></p>
+        <div class="karaokeButtons">
+          <button
+            is="emby-button"
+            type="button"
+            id="confirmCancel"
+            class="raised emby-button"
+          >
+            <span>Cancel</span>
+          </button>
+          <button
+            is="emby-button"
+            type="button"
+            id="confirmStart"
+            class="raised button-submit emby-button"
+          >
+            <span>Render</span>
+          </button>
+        </div>
+      </dialog>
+
+      <script type="text/javascript">
+        (function () {
+          const pluginId = "1cb1fb71-1f2b-46c8-8544-3491558b01ec";
+          const page = document.querySelector("#KaraokeCdgConfigPage");
+          const byId = id => page.querySelector("#" + id);
+          const textFields = [
+            "VideoFolder",
+            "PlaceholderFolder",
+            "ExtractFolder",
+          ];
+          const numberFields = [
+            "VideoRetentionDays",
+            "KeepRecentVideos",
+            "ExtractRetentionHours",
+            "KeepRecentCount",
+          ];
+          const boolFields = [
+            "EnableChannel",
+            "EnableVideo",
+            "PlaceholdersNextToZips",
+            "CreateKaraokeLibrary",
+            "WatchZipFolders",
+          ];
+          let pollTimer = null;
+
+          function formatDuration(seconds) {
+            const minutes = Math.ceil(seconds / 60);
+            if (minutes <= 1) return "about a minute";
+            if (minutes < 60) return "about " + minutes + " minutes";
+            const hours = Math.floor(minutes / 60);
+            const rest = minutes % 60;
+            return "about " + hours + " h" + (rest ? " " + rest + " min" : "");
+          }
+
+          function formatBytes(bytes) {
+            const units = ["bytes", "KB", "MB", "GB", "TB"];
+            let value = bytes;
+            let unit = 0;
+            while (value >= 1024 && unit < units.length - 1) {
+              value /= 1024;
+              unit++;
+            }
+            return (unit === 0 ? value : value.toFixed(1)) + " " + units[unit];
+          }
+
+          function addFact(list, text) {
+            const item = document.createElement("li");
+            item.textContent = text;
+            list.appendChild(item);
+          }
+
+          function showConfirm(estimate) {
+            const facts = byId("confirmFacts");
+            const warning = byId("confirmWarning");
+            const start = byId("confirmStart");
+            facts.replaceChildren();
+            warning.hidden = true;
+
+            if (estimate.SongsToRender === 0) {
+              byId("confirmTitle").textContent = "Nothing to render";
+              addFact(
+                facts,
+                "All " +
+                  estimate.TotalSongs +
+                  " karaoke videos are already rendered."
+              );
+              byId("confirmNotes").textContent = "";
+              start.hidden = true;
+              byId("confirmDialog").showModal();
+              return;
+            }
+
+            byId("confirmTitle").textContent =
+              "Render " + estimate.SongsToRender + " karaoke videos?";
+            addFact(
+              facts,
+              "Songs: " +
+                estimate.SongsToRender +
+                " to render, " +
+                estimate.RenderedSongs +
+                " already rendered"
+            );
+            addFact(
+              facts,
+              "Estimated time: " + formatDuration(estimate.Seconds)
+            );
+            addFact(
+              facts,
+              "Estimated storage: " +
+                formatBytes(estimate.Bytes) +
+                " in " +
+                estimate.VideoFolder
+            );
+            if (estimate.TemporaryBytes > 0) {
+              addFact(
+                facts,
+                "Temporary space for extracted zips: up to " +
+                  formatBytes(estimate.TemporaryBytes) +
+                  ", freed by the hourly cleanup"
+              );
+            }
+            if (estimate.FreeBytes !== null) {
+              addFact(facts, "Free space: " + formatBytes(estimate.FreeBytes));
+            }
+
+            if (!estimate.EnoughSpace) {
+              warning.textContent =
+                "There may not be enough free space. Renders fail once the disk is full.";
+              warning.hidden = false;
+            }
+
+            const notes = [
+              "Rendering keeps Jellyfin's CPU busy, so playback and transcoding may be slower until it finishes. You can stop at any time; finished videos are kept.",
+            ];
+            if (!estimate.FromMeasurements) {
+              notes.push(
+                "Estimates use typical figures (12 s and 7 MB per 4-minute song on a 4-core CPU) until this server has rendered some songs."
+              );
+            }
+            if (estimate.RetentionDays > 0) {
+              notes.push(
+                "Videos not played for " +
+                  estimate.RetentionDays +
+                  " days are deleted again, except the " +
+                  estimate.KeepRecent +
+                  ' most recently played. Set "Keep unplayed videos for" to 0 to keep them all.'
+              );
+            }
+            byId("confirmNotes").textContent = notes.join(" ");
+            start.hidden = false;
+            start.querySelector("span").textContent = estimate.EnoughSpace
+              ? "Render"
+              : "Render anyway";
+            byId("confirmDialog").showModal();
+          }
+
+          function showStatus(status) {
+            const running =
+              status.State === "Running" || status.State === "Cancelling";
+            byId("renderProgress").hidden = !running;
+            byId("renderButton").disabled = running;
+            if (running) {
+              const percent = Math.floor(status.Progress || 0);
+              byId("renderBar").value = percent;
+              byId("renderProgressText").textContent =
+                status.State === "Cancelling"
+                  ? "Stopping…"
+                  : "Rendering… " + percent + "%";
+              byId("renderMessage").textContent = "";
+              if (!pollTimer) pollTimer = setInterval(refreshStatus, 3000);
+              return;
+            }
+
+            stopPolling();
+            byId("renderMessage").textContent = status.LastResult
+              ? "Last render: " +
+                status.LastResult +
+                " at " +
+                new Date(status.LastEnded).toLocaleString()
+              : "";
+          }
+
+          function refreshStatus() {
+            return ApiClient.getJSON(
+              ApiClient.getUrl("Karaoke/Render/Status")
+            ).then(showStatus);
+          }
+
+          function stopPolling() {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = null;
+          }
+
+          function post(path) {
+            return ApiClient.ajax({
+              type: "POST",
+              url: ApiClient.getUrl(path),
+              dataType: "json",
+            });
+          }
+
+          byId("renderButton").addEventListener("click", function () {
+            const wait = byId("waitDialog");
+            wait.showModal();
+            ApiClient.getJSON(ApiClient.getUrl("Karaoke/Render/Estimate"))
+              .then(estimate => {
+                wait.close();
+                showConfirm(estimate);
+              })
+              .catch(error => {
+                wait.close();
+                byId("renderMessage").textContent =
+                  "Could not estimate the render (" +
+                  (error.status || error.message || error) +
+                  ").";
+              });
+          });
+
+          byId("confirmCancel").addEventListener("click", () =>
+            byId("confirmDialog").close()
+          );
+          byId("confirmStart").addEventListener("click", function () {
+            byId("confirmDialog").close();
+            post("Karaoke/Render/Start").then(showStatus, () =>
+              refreshStatus()
+            );
+          });
+          byId("cancelRenderButton").addEventListener("click", () =>
+            post("Karaoke/Render/Cancel").then(showStatus)
+          );
+
+          page.addEventListener("pageshow", function () {
+            Dashboard.showLoadingMsg();
+            ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+              textFields.forEach(
+                name => (byId(name).value = config[name] || "")
+              );
+              numberFields.forEach(name => (byId(name).value = config[name]));
+              boolFields.forEach(name => (byId(name).checked = !!config[name]));
+              byId("ZipFolders").value = (config.ZipFolders || []).join("\n");
+              Dashboard.hideLoadingMsg();
+            });
+            refreshStatus();
+          });
+          page.addEventListener("pagehide", stopPolling);
+
+          byId("KaraokeCdgConfigForm").addEventListener(
+            "submit",
+            function (event) {
+              event.preventDefault();
+              Dashboard.showLoadingMsg();
+              ApiClient.getPluginConfiguration(pluginId).then(
+                function (config) {
+                  textFields.forEach(
+                    name => (config[name] = byId(name).value.trim())
+                  );
+                  numberFields.forEach(
+                    name => (config[name] = parseInt(byId(name).value, 10) || 0)
+                  );
+                  boolFields.forEach(
+                    name => (config[name] = byId(name).checked)
+                  );
+                  config.ZipFolders = byId("ZipFolders")
+                    .value.split("\n")
+                    .map(line => line.trim())
+                    .filter(Boolean);
+                  ApiClient.updatePluginConfiguration(pluginId, config).then(
+                    result =>
+                      Dashboard.processPluginConfigurationUpdateResult(result)
+                  );
+                }
+              );
+              return false;
+            }
+          );
+        })();
+      </script>
+    </div>
+  </body>
+</html>

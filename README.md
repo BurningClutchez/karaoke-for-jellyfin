@@ -31,214 +31,79 @@ Full-screen karaoke experience with lyrics, performance feedback, and queue mana
 
 ### Admin Interface
 
-Mobile-optimized host controls for managing the karaoke session.
-
-#### Playback Controls
-
-- **Play/Pause**: Control song playback
-- **Skip**: Move to the next song in queue
-- **Seek**: Jump to any position in the current song
-- **Volume Control**: Adjust system volume and mute/unmute
-- **Lyrics Timing**: Fine-tune lyrics synchronization with ±10 second adjustment
-
-#### Queue Management
-
-- **View Queue**: See all pending songs with position, title, artist, and duration
-- **Queue Status**: Real-time count of songs in queue
-- **Song Details**: View who added each song to the queue
-
-#### Emergency Controls
-
-- **Emergency Stop**: Immediately stop all playback
-- **Restart Song**: Jump back to the beginning of the current song
-- **Mute Audio**: Quickly silence the system
-- **System Status**: Monitor connection status, active users, and queue length
-- **Cache Management**: View cache status and clear cached data
-
-#### Features
-
-- **Real-time Updates**: All controls sync instantly with the TV display
-- **User Management**: Admin identification with persistent login
-- **Connection Monitoring**: Visual indicators for system connectivity
-- **Mobile Optimized**: Touch-friendly interface designed for phones and tablets
-
----
+`<hostname>/admin` gives the host playback controls (play, pause, skip, seek, volume, lyrics timing), a view of the queue, emergency stop, and system and cache status. Everything syncs to the TV instantly.
 
 ## Features
 
-- **Mobile Interface**: Search and queue songs from your phone
-- **TV Display**: Full-screen lyrics display and playback control
-- **CD+G Karaoke Graphics**: Plays `.cdg` graphics that sit next to your MP3s ([setup](docs/CDG.md))
-- **Admin Interface**: Comprehensive host controls for session management
-- **Jellyfin Integration**: Leverages your existing Jellyfin media library
-- **Real-time Sync**: WebSocket-based real-time updates between devices
-- **Progressive Web App**: Install on mobile/desktop for native app experience
-- **Offline Support**: Core functionality works without internet connection
-- **Smart Caching**: Intelligent cache management with update detection
-- **Cache Clearing**: Built-in tools to resolve update and caching issues
+- Search by artist, playlist or title, and queue songs from any phone
+- Full-screen TV display with synced lyrics, song ratings and a next-up countdown
+- **CD+G karaoke graphics** for `.cdg` files next to your songs, or zipped with them ([setup](docs/CDG.md))
+- **Karaoke channel** in Jellyfin's own apps, via the optional [Jellyfin plugin](jellyfin-plugin/README.md)
+- Installable as a web app (PWA)
 
-## Getting Started
+## Quick start (Docker)
 
-### Docker Compose (Recommended)
-
-The easiest way to run Karaoke For Jellyfin is using Docker:
-
-```bash
-version: "3.8"
+```yaml
 services:
-  karaoke-app:
+  karaoke:
     image: mrorbitman/karaoke-for-jellyfin:latest
     ports:
       - 3967:3000
     environment:
-      # Jellyfin Configuration
-      - JELLYFIN_SERVER_URL=${JELLYFIN_SERVER_URL:-http://localhost:8096}
-      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
-      - JELLYFIN_USERNAME=${JELLYFIN_USERNAME}
-
-      # OPTIONAL Playlist Filtering
-      - PLAYLIST_FILTER_REGEX=${PLAYLIST_FILTER_REGEX}
-
-      # OPTIONAL TV Display Timing Configuration (in milliseconds)
-      - RATING_ANIMATION_DURATION=${RATING_ANIMATION_DURATION:-15000}
-      - NEXT_SONG_DURATION=${NEXT_SONG_DURATION:-15000}
-      - CONTROLS_AUTO_HIDE_DELAY=${CONTROLS_AUTO_HIDE_DELAY:-10000}
-      - AUTOPLAY_DELAY=${AUTOPLAY_DELAY:-500}
-      - QUEUE_AUTOPLAY_DELAY=${QUEUE_AUTOPLAY_DELAY:-1000}
-      - TIME_UPDATE_INTERVAL=${TIME_UPDATE_INTERVAL:-2000}
-
-      # OPTIONAL CD+G karaoke graphics (see docs/CDG.md)
-      # auto | canvas | video | off
-      - CDG_MODE=${CDG_MODE:-auto}
-      # Option A: read .cdg files from a read-only mount of the music library
-      # - CDG_LOCAL_ROOT=/music
-      # - CDG_JELLYFIN_ROOT=/media/music
-      # Render plugin video when a song is queued (default: only in video mode)
-      # - CDG_PRERENDER=true
-      # OPTIONAL logging: debug | info | warn | error, and text | json
-      # - LOG_LEVEL=info
-      # - LOG_FORMAT=text
-      # OPTIONAL: browse only this music library (default: all music libraries)
-      # - JELLYFIN_MUSIC_LIBRARY=Music
-
-      # System Configuration
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-    # OPTIONAL: mount the music library read-only for CD+G graphics (option A)
-    # volumes:
-    #   - /path/to/music:/music:ro
-    restart: always
-networks: {}
-
+      - JELLYFIN_SERVER_URL=http://192.168.1.50:8096 # must also work from phones (album art)
+      - JELLYFIN_API_KEY=your-api-key # Dashboard → API Keys
+      - JELLYFIN_USERNAME=your-user
+      # Optional
+      # - JELLYFIN_MUSIC_LIBRARY=Music   # browse only this library
+      # - CDG_MODE=auto                  # auto | canvas | video | off (docs/CDG.md)
+      # - CDG_PRERENDER=false            # don't render videos for queued songs
+      # - LOG_LEVEL=info                 # debug | info | warn | error
+    restart: unless-stopped
 ```
 
-### Local Development
+Then open:
 
-### Prerequisites
+- `http://<host>:3967/tv` on the TV
+- `http://<host>:3967/` on phones (or scan the QR code on the TV)
+- `http://<host>:3967/admin` for the host
 
-- Node.js 18+
-- A running Jellyfin server
-- Audio files in your Jellyfin library
+More settings, such as TV timings, are in [`.env.example`](.env.example); playlist filtering is in [`.env.local.example`](.env.local.example). For CD+G graphics, add the [Jellyfin plugin](jellyfin-plugin/README.md) or mount your music folder (see [docs/CDG.md](docs/CDG.md)).
 
-### Installation
+## CD+G graphics in short
 
-1. Clone the repository
-2. Install dependencies:
+- The TV draws `.cdg` graphics itself when it can, and falls back to a video rendered by the Jellyfin plugin, then to lyrics.
+- Queued songs are rendered ahead by default, so the video is ready by the time the song comes up. Set `CDG_PRERENDER=false` to turn this off.
+- To render the **whole library** ahead of time, open **Dashboard → Plugins → Karaoke CDG** in Jellyfin and click **Render karaoke videos**. It first calculates how long this will take and how much space it needs, and asks you to confirm.
+- Rendered videos are cached like extracted zips. A video that isn't played for 30 days is deleted, except the 100 most recently played, and is rendered again when next needed. Both limits can be changed on the plugin's settings page.
 
-   ```bash
-   npm install
-   ```
+## Checking the setup
 
-3. Copy the environment configuration:
+- `npm run check:jellyfin` (or `docker compose exec karaoke npm run check:jellyfin`) checks that Jellyfin is reachable, the API key works and the user exists.
+- `GET /api/health` reports the app, Jellyfin and plugin status. Add `?strict=1` to get a 503 when Jellyfin has problems.
+- Logs have timestamps and levels, mask API keys, and include errors from the TV and phones' browsers. `LOG_LEVEL=debug` shows every request; `LOG_FORMAT=json` suits log collectors.
+- Works with Jellyfin 12: the app uses the standard `Authorization: MediaBrowser Token` header.
 
-   ```bash
-   cp .env.local.example .env.local
-   ```
+## Troubleshooting
 
-4. Update `.env.local` with your Jellyfin server details
+- **Lyrics too early or late:** use the lyrics offset in the admin page.
+- **Old version showing:** use the cache panel in the admin page, visit `/clear-cache`, or force-refresh the browser.
+- **No album art on phones:** `JELLYFIN_SERVER_URL` must be reachable from the phones, not just from the app.
 
-5. Run the development server:
+## Development
 
-   ```bash
-   npm run dev
-   ```
+Needs Node.js 20 and a Jellyfin server.
 
-6. Open the interfaces:
-   - **Mobile**: [http://localhost:3000](http://localhost:3000)
-   - **TV Display**: [http://localhost:3000/tv](http://localhost:3000/tv)
-   - **Admin**: [http://localhost:3000/admin](http://localhost:3000/admin)
-
-### Checking the setup
-
-- `npm run check:jellyfin` confirms the Jellyfin settings work (server reachable, API key accepted, user exists) and says what is wrong if not. The server runs the same check at startup and logs the result.
-- `GET /api/health` reports the app, Jellyfin and Karaoke CDG plugin status. It answers 200 while the app is running, even if Jellyfin is down, so Docker doesn't restart it and lose the queue. Add `?strict=1` to get 503 when Jellyfin has problems. The Docker image's `HEALTHCHECK` uses it.
-- Logs have timestamps and levels. Set `LOG_LEVEL=debug` to see every API request and socket payload, or `LOG_LEVEL=warn` for quiet logs, and `LOG_FORMAT=json` for log collectors. API keys are masked. Errors from the TV and phones' browsers also appear in the server log, tagged `[client:tv]` or `[client:mobile]`.
-
-**Jellyfin 12:** the app authenticates with the standard `Authorization: MediaBrowser Token` header, so it works whether or not "Enable legacy authorization" is on.
-
-## Usage
-
-### Setting Up a Karaoke Session
-
-1. **Start the TV Display**: Open `<hostname>/tv` on your main display
-2. **Admin Setup**: Open `<hostname>/admin` on your phone/tablet for host controls
-3. **Share with Guests**: Have guests scan the QR code or visit `<hostname>/` to add songs
-
-### Host Controls
-
-The admin interface provides three main control panels:
-
-- **Playback**: Control current song playback, volume, and lyrics timing
-- **Queue**: Monitor upcoming songs and queue status
-- **Emergency**: Quick access to emergency controls, system status, and cache management
-
-### Tips for Hosts
-
-- Use the **lyrics offset** control if lyrics appear too early or late
-- The **emergency stop** button immediately halts playback for technical issues
-- Monitor the **system status** panel to track active users and connection health
-- **Volume controls** affect the entire system, not just individual songs
-
-### Troubleshooting Updates and Caching
-
-If the app isn't showing the latest updates or behaving unexpectedly:
-
-1. **Check for Updates**: The app will automatically notify you when updates are available
-2. **Quick Cache Clear**: Use the cache status panel in the admin interface for a quick clear
-3. **Full Cache Clear**: Visit `<hostname>/clear-cache` for comprehensive cache management
-4. **Manual Refresh**: Force refresh your browser (Ctrl+F5 or Cmd+Shift+R)
-
-The cache clearing page (`/clear-cache`) provides:
-
-- Complete cache information and statistics
-- Clearing of service worker caches
-- Clearing of browser storage (localStorage, sessionStorage)
-- Clearing of IndexedDB databases
-- Automatic redirect to fresh app instance
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── api/          # API routes
-│   ├── admin/        # Admin interface
-│   ├── clear-cache/  # Cache clearing page
-│   ├── tv/           # TV display interface
-│   └── page.tsx      # Mobile interface
-├── components/
-│   ├── mobile/       # Mobile-specific components
-│   ├── tv/           # TV-specific components
-│   ├── CacheStatus.tsx    # Cache management component
-│   └── PWAInstaller.tsx   # PWA installation and updates
-├── hooks/
-│   └── useServiceWorker.ts # Service worker management hook
-├── lib/              # Utility libraries
-├── services/         # Business logic services
-└── types/            # TypeScript type definitions
+```bash
+npm install
+cp .env.local.example .env.local   # set the three JELLYFIN_ values
+npm run dev                        # http://localhost:3000
 ```
 
-## Development Status
+| Command                   | What it does                  |
+| ------------------------- | ----------------------------- |
+| `npm test`                | Unit tests (Vitest)           |
+| `npm run test:acceptance` | End-to-end tests (Playwright) |
+| `npm run lint:check`      | ESLint                        |
+| `npm run build`           | Production build              |
 
-This project is currently in development. See the implementation tasks in `.kiro/specs/self-hosted-karaoke/tasks.md` for current progress.
+The server (`server.js`) runs Next.js and Socket.IO together; the queue lives in memory there. See [CLAUDE.md](CLAUDE.md) for the code layout.

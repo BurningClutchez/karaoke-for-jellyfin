@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using MediaBrowser.Common.Configuration;
+using Jellyfin.Plugin.KaraokeCdg.Cache;
 using MediaBrowser.Controller.MediaEncoding;
 using Microsoft.Extensions.Logging;
 
@@ -31,19 +31,19 @@ public sealed class CdgVideoRenderer
 {
     private readonly ConcurrentDictionary<string, Lazy<Task<string?>>> _jobs = new();
     private readonly IMediaEncoder _mediaEncoder;
-    private readonly IApplicationPaths _applicationPaths;
+    private readonly VideoCache _cache;
     private readonly ILogger<CdgVideoRenderer> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CdgVideoRenderer"/> class.
     /// </summary>
     /// <param name="mediaEncoder">Provides the path of Jellyfin's ffmpeg.</param>
-    /// <param name="applicationPaths">Provides the cache folder.</param>
+    /// <param name="cache">The video cache folder.</param>
     /// <param name="logger">Logger.</param>
-    public CdgVideoRenderer(IMediaEncoder mediaEncoder, IApplicationPaths applicationPaths, ILogger<CdgVideoRenderer> logger)
+    public CdgVideoRenderer(IMediaEncoder mediaEncoder, VideoCache cache, ILogger<CdgVideoRenderer> logger)
     {
         _mediaEncoder = mediaEncoder;
-        _applicationPaths = applicationPaths;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -58,6 +58,7 @@ public sealed class CdgVideoRenderer
         var output = GetCachePath(job);
         if (File.Exists(output))
         {
+            _cache.MarkUsed(output);
             return Task.FromResult<string?>(output);
         }
 
@@ -80,7 +81,7 @@ public sealed class CdgVideoRenderer
             var zipName = string.Create(
                 CultureInfo.InvariantCulture,
                 $"{job.ItemId:N}-z{source.Length}-{source.LastWriteTimeUtc.Ticks}{(job.AudioPath is null ? string.Empty : "-av")}");
-            return Path.Combine(_applicationPaths.CachePath, "karaoke-cdg", $"{zipName}.{extension}");
+            return Path.Combine(_cache.Root, $"{zipName}.{extension}");
         }
 
         var cdg = new FileInfo(job.CdgPath);
@@ -93,7 +94,7 @@ public sealed class CdgVideoRenderer
             name += string.Create(CultureInfo.InvariantCulture, $"-av-{audio.Length}-{audio.LastWriteTimeUtc.Ticks}");
         }
 
-        return Path.Combine(_applicationPaths.CachePath, "karaoke-cdg", $"{name}.{extension}");
+        return Path.Combine(_cache.Root, $"{name}.{extension}");
     }
 
     /// <summary>
@@ -147,6 +148,26 @@ public sealed class CdgVideoRenderer
     }
 
     /// <summary>
+    /// Checks whether a video is being rendered right now.
+    /// </summary>
+    /// <param name="videoPath">Cache path of the video.</param>
+    /// <returns>True while ffmpeg writes it.</returns>
+    public bool IsRendering(string videoPath) => _jobs.ContainsKey(videoPath);
+
+    /// <summary>
+    /// Records that a cached video was played, which restarts its retention period.
+    /// </summary>
+    /// <param name="videoPath">Cache path of the video.</param>
+    public void MarkUsed(string videoPath) => _cache.MarkUsed(videoPath);
+
+    /// <summary>
+    /// Length of a song, worked out from its CDG file: CD+G is 300 packets of 24 bytes a second.
+    /// </summary>
+    /// <param name="cdgBytes">Size of the CDG file.</param>
+    /// <returns>The length in seconds.</returns>
+    public static double CdgSeconds(long cdgBytes) => cdgBytes / 7200.0;
+
+    /// <summary>
     /// MIME type served for a rendered format.
     /// </summary>
     /// <param name="format">Rendered format.</param>
@@ -171,6 +192,7 @@ public sealed class CdgVideoRenderer
                 startInfo.ArgumentList.Add(argument);
             }
 
+            var clock = Stopwatch.StartNew();
             using var process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("ffmpeg did not start");
             var errors = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
@@ -184,7 +206,14 @@ public sealed class CdgVideoRenderer
             }
 
             File.Move(temp, output, overwrite: true);
-            _logger.LogInformation("Rendered CDG video {Output}", output);
+            _logger.LogInformation("Rendered CDG video {Output} in {Seconds:0.0} s", output, clock.Elapsed.TotalSeconds);
+            if (job.AudioPath is not null)
+            {
+                // Karaoke channel videos: the kind the render estimate is about
+                _cache.AddRender(CdgSeconds(new FileInfo(job.CdgPath).Length), clock.Elapsed.TotalSeconds, new FileInfo(output).Length);
+            }
+
+            _cache.MarkUsed(output);
             return output;
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)

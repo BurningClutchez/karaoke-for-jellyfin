@@ -9,14 +9,14 @@
 const ITEM_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 
 /**
- * Pre-render by default only when the TV always uses plugin video
- * (CDG_MODE=video). CDG_PRERENDER=true/false overrides that.
+ * Queued songs are pre-rendered by default, so the video is ready if the TV
+ * needs it. Off when graphics are off (CDG_MODE=off) or CDG_PRERENDER=false.
  */
 function shouldPrerender(env = process.env) {
   const setting = (env.CDG_PRERENDER || "").toLowerCase();
   if (setting === "true") return true;
   if (setting === "false") return false;
-  return (env.CDG_MODE || "").toLowerCase() === "video";
+  return (env.CDG_MODE || "").toLowerCase() !== "off";
 }
 
 /**

@@ -64,4 +64,21 @@ public class PluginConfiguration : BasePluginConfiguration
     /// (takes effect after a restart; not reliable on network shares).
     /// </summary>
     public bool WatchZipFolders { get; set; }
+
+    /// <summary>
+    /// Gets or sets the folder rendered karaoke videos are cached in.
+    /// Empty means "karaoke-cdg" in Jellyfin's cache folder.
+    /// </summary>
+    public string VideoFolder { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets how long a rendered video is kept after it was last played, in days.
+    /// 0 keeps videos forever.
+    /// </summary>
+    public int VideoRetentionDays { get; set; } = 30;
+
+    /// <summary>
+    /// Gets or sets how many of the most recently played videos are always kept.
+    /// </summary>
+    public int KeepRecentVideos { get; set; } = 100;
 }

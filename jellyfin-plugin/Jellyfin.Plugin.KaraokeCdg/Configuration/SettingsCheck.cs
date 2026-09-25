@@ -29,6 +29,16 @@ public static class SettingsCheck
             warnings.Add($"KeepRecentCount is {config.KeepRecentCount}; negative values count as 0 (keep none)");
         }
 
+        if (config.VideoRetentionDays < 0)
+        {
+            warnings.Add($"VideoRetentionDays is {config.VideoRetentionDays}; negative values count as 0 (keep forever)");
+        }
+
+        if (config.KeepRecentVideos < 0)
+        {
+            warnings.Add($"KeepRecentVideos is {config.KeepRecentVideos}; negative values count as 0 (keep none)");
+        }
+
         warnings.AddRange(config.ZipFolders
             .Where(folder => !string.IsNullOrWhiteSpace(folder) && !Directory.Exists(folder))
             .Select(folder => $"Zip folder {folder} does not exist"));

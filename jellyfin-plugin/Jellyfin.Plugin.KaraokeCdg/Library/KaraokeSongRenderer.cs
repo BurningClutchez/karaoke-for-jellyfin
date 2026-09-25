@@ -57,6 +57,7 @@ public sealed class KaraokeSongRenderer
         var cached = GetCachePath(song);
         if (File.Exists(cached))
         {
+            _renderer.MarkUsed(cached);
             return cached;
         }
 

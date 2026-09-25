@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.KaraokeCdg.Cache;
 using Jellyfin.Plugin.KaraokeCdg.Library;
 using Jellyfin.Plugin.KaraokeCdg.Zips;
 using MediaBrowser.Controller;
@@ -16,6 +17,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         // Singleton so concurrent requests for the same song share one ffmpeg run
+        serviceCollection.AddSingleton<VideoCache>();
         serviceCollection.AddSingleton<CdgVideoRenderer>();
         serviceCollection.AddSingleton<KaraokeLibraryIndex>();
         serviceCollection.AddSingleton<KaraokeSongRenderer>();
