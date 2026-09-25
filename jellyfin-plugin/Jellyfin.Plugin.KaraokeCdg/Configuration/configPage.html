@@ -150,11 +150,15 @@
 
             <h2>Zipped songs</h2>
             <div class="inputContainer">
+              <label class="textareaLabel" for="ZipFolders"
+                >Zip folders (one per line)</label
+              >
               <textarea
                 is="emby-textarea"
+                class="emby-textarea"
                 id="ZipFolders"
                 rows="3"
-                label="Zip folders (one per line)"
+                style="width: 100%; box-sizing: border-box"
               ></textarea>
               <div class="fieldDescription">
                 Empty means every music library.
@@ -257,7 +261,7 @@
             is="emby-button"
             type="button"
             id="confirmCancel"
-            class="raised emby-button"
+            class="button-flat emby-button"
           >
             <span>Cancel</span>
           </button>
@@ -412,7 +416,8 @@
             const running =
               status.State === "Running" || status.State === "Cancelling";
             byId("renderProgress").hidden = !running;
-            byId("renderButton").disabled = running;
+            // Jellyfin's button style sets display, which beats the hidden attribute
+            byId("renderButton").style.display = running ? "none" : "";
             if (running) {
               const percent = Math.floor(status.Progress || 0);
               byId("renderBar").value = percent;
