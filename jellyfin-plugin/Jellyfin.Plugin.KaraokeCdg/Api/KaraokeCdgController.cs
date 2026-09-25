@@ -149,7 +149,20 @@ public class KaraokeCdgController : ControllerBase
             return NotFound();
         }
 
-        var files = await ResolveAsync(itemId, cancellationToken).ConfigureAwait(false);
+        // A zipped song's video is named after the zip, so a cached one can be served without
+        // extracting the zip first
+        var item = _libraryManager.GetItemById(itemId);
+        if (_resolver.FindZip(item) is { } zip)
+        {
+            var cached = _renderer.GetCachePath(new CdgRenderJob(itemId, string.Empty, format, SourcePath: zip.ZipPath));
+            if (System.IO.File.Exists(cached))
+            {
+                _renderer.MarkUsed(cached);
+                return PhysicalFile(cached, CdgVideoRenderer.ContentType(format), enableRangeProcessing: true);
+            }
+        }
+
+        var files = await _resolver.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
         if (files is null)
         {
             return NotFound();
