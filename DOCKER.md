@@ -137,6 +137,10 @@ network_mode: host
 
 If Jellyfin is running in another container, use a shared network.
 
+#### Option 4: Tailscale sidecar with a macvlan LAN IP
+
+Jellyfin and the app share a Tailscale container's network, with one LAN IP and one tailnet IP. See [`docs/docker-compose.tailscale-macvlan.yml`](docs/docker-compose.tailscale-macvlan.yml) and the README section "Jellyfin, Tailscale and the app on one IP".
+
 ## Development
 
 ### Development with Docker

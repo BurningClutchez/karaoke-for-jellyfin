@@ -54,7 +54,7 @@ services:
       - JELLYFIN_API_KEY=your-api-key # Dashboard → API Keys
       - JELLYFIN_USERNAME=your-user
       # Optional
-      # - JELLYFIN_MUSIC_LIBRARY=Music   # browse only this library
+      # - JELLYFIN_MUSIC_LIBRARY=Music   # list artists from this library only
       # - CDG_MODE=auto                  # auto | canvas | video | off (docs/CDG.md)
       # - CDG_PRERENDER=false            # don't render videos for queued songs
       # - SONG_FILTER=karaoke           # karaoke (lyrics or CD+G) | lyrics | all
@@ -71,6 +71,51 @@ Then open:
 - `http://<host>:3967/admin` for the host
 
 More settings, such as TV timings, are in [`.env.example`](.env.example); playlist filtering is in [`.env.local.example`](.env.local.example). For CD+G graphics, add the [Jellyfin plugin](jellyfin-plugin/README.md) or mount your music folder (see [docs/CDG.md](docs/CDG.md)).
+
+## Only karaoke songs on phones
+
+Keep karaoke files apart from your regular music, and give the app a Jellyfin user that can only see them.
+
+1. **Separate folder and library.** Put karaoke files in their own folder, mount it into Jellyfin (for example at `/media/karaoke`), and add it as its own library of type Music, such as "Karaoke Tracks". Regular music stays in "Music".
+2. **A karaoke-only Jellyfin user.** In **Dashboard → Users**, add a user such as `karaoke`. Under **Library access**, untick "Enable access to all libraries" and tick only **Karaoke Tracks**, plus the plugin's **Karaoke** library if you have zipped songs (their placeholders live there). Set `JELLYFIN_USERNAME=karaoke`. Every query the app makes is limited to what this user can see, so regular music doesn't show up in browsing, title search or song lists.
+3. **Plugin zip folders.** In **Dashboard → Plugins → Karaoke CDG**, set **Zip folders** to `/media/karaoke`. The default searches every music library.
+4. **App mount, only for CD+G option A.** With the plugin, the app needs no music mount. Otherwise mount just the karaoke folder, for example `/path/to/karaoke:/karaoke:ro` with `CDG_LOCAL_ROOT=/karaoke` and `CDG_JELLYFIN_ROOT=/media/karaoke`. The app never reads outside `CDG_JELLYFIN_ROOT`. If your karaoke files are a subfolder of the music library, use that subfolder, such as `CDG_JELLYFIN_ROOT=/media/music/Karaoke`.
+5. **Keep `SONG_FILTER=karaoke`** (the default) so phones only list songs with lyrics or CD+G graphics. On its own it isn't enough: regular songs with lyrics would still show, which is why step 2 matters.
+
+`JELLYFIN_MUSIC_LIBRARY` isn't a substitute for step 2: it only narrows the artist list, not title search or song lists, and it takes one library, so it can't include both your karaoke library and the plugin's Karaoke library.
+
+**What needs a restart**
+
+| Change                                          | What to do                                                       |
+| ----------------------------------------------- | ---------------------------------------------------------------- |
+| New mount on Jellyfin                           | `docker compose up -d jellyfin`, then add the library and scan   |
+| `JELLYFIN_USERNAME`, `CDG_*` or the app's mount | `docker compose up -d karaoke`                                   |
+| A new library while the app runs                | `docker compose up -d karaoke` (it picks its library at startup) |
+| The user's library access                       | Nothing: applies to the next search                              |
+| The plugin's zip folders                        | Nothing: run a library scan to make placeholders now             |
+| Which songs are badged Karaoke                  | Nothing: updates within about 15 minutes                         |
+
+Use `docker compose up -d`, not `restart`, which keeps the old settings. Recreating the app empties the queue, so do it before the party; phones reconnect by themselves. Do the steps in the order above, then search on a phone for a title that's only in your regular music: it shouldn't appear.
+
+## Jellyfin, Tailscale and the app on one IP
+
+[`docs/docker-compose.tailscale-macvlan.yml`](docs/docker-compose.tailscale-macvlan.yml) runs Jellyfin and the app behind a Tailscale container that has its own LAN IP (macvlan). Both share its networking, so they answer on one LAN IP and one tailnet IP. Karaoke files are already separated as in the section above.
+
+1. Replace `192.168.1.60`, the subnet, the gateway and `eth0` with your own; pick an IP outside your router's DHCP range.
+2. Put `TS_AUTHKEY`, `JELLYFIN_API_KEY` and `JELLYFIN_USERNAME` in a `.env` file next to it. Create the API key once Jellyfin is up, then run `docker compose up -d karaoke` again.
+3. In the Tailscale admin console, approve the `192.168.1.60/32` route. Tailnet devices can then use the LAN addresses too, which album art needs (it loads straight from `JELLYFIN_SERVER_URL`). Phones use approved routes automatically; Linux needs `--accept-routes`.
+4. Open the TV at `http://192.168.1.60:3000/tv`. The QR code shows the address the TV page was opened on, so opening it at the LAN IP gives guests a code that works on Wi-Fi and, with the route, over Tailscale.
+
+| Where                     | Phones                     | TV                            | Jellyfin                   |
+| ------------------------- | -------------------------- | ----------------------------- | -------------------------- |
+| Home Wi-Fi                | `http://192.168.1.60:3000` | `http://192.168.1.60:3000/tv` | `http://192.168.1.60:8096` |
+| Tailscale, route approved | the same                   | the same                      | the same                   |
+| Tailscale, no route       | `http://karaoke:3000`      | `http://karaoke:3000/tv`      | `http://karaoke:8096`      |
+
+- The Docker host can't reach its own macvlan IP; other LAN devices can. Add a macvlan shim on the host, or use the tailnet name, to reach it from the host.
+- Restarting the Tailscale container cuts off the other two. `depends_on … restart: true` restarts them too (Docker Compose 2.17+); otherwise run `docker compose restart jellyfin karaoke`.
+- All three share one IP, so ports must differ: the app uses 3000, Jellyfin 8096.
+- Leave `TRUST_PROXY` off: phones connect directly, not through a proxy.
 
 ## CD+G graphics in short
 
