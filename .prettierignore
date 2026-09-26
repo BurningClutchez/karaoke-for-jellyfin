@@ -19,3 +19,4 @@ playwright-report/
 jellyfin-plugin/**/bin/
 jellyfin-plugin/**/obj/
 jellyfin-plugin/artifacts/
+.ci-jellyfin/

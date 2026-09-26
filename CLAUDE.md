@@ -71,18 +71,25 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 ### E2E / Acceptance Tests
 
 - **Playwright + playwright-bdd** (Gherkin `.feature` files)
-- Three projects in `playwright.config.ts`:
+- Projects in `playwright.config.ts` (CI runs all of them):
   - `single-user` — headless, one browser context
-  - `multi-user` — headless, multiple isolated contexts (Alice, Bob, TV)
+  - `multi-user`, `audience-reactions`, `admin-sync`, `fair-rotation` — headless, multiple isolated contexts (Alice, Bob, TV)
+  - `favorites-history` — headless, runs serially
+  - `cdg-graphics` — a phone picks CD+G songs (sidecar and zipped) and the TV must draw the graphics
   - `full-playback` — **headed** via xvfb in CI, uses real audio decoding
 - Before running: `npx bddgen` regenerates `.features-gen/` from features + steps
-- E2E tests hit a **real Jellyfin server** (not mocked) — timeouts must account for network latency
+- E2E tests hit a **real Jellyfin server** (not mocked): in CI, the one `scripts/ci` sets up. Locally, any Jellyfin with that library works — timeouts must account for network latency
 
 ### CI
 
 - GitHub Actions: `.github/workflows/ci.yml`
 - Runs on PRs and pushes to main
-- Steps: lint → format → unit tests → CRAP → build → playwright (headless) → playwright (headed/xvfb)
+- Steps: lint → format → unit tests → CRAP → build → plugin build → Jellyfin in Docker → plugin checks → all Playwright projects (under xvfb)
+- CI runs its own Jellyfin (`jellyfin/jellyfin:12.1`) with the Karaoke CDG plugin from the commit, so no secrets are needed:
+  - `scripts/ci/make-library.sh` builds the test library: lyric songs under artists A–T (tests pick artists by position), a `.cdg` song, a zipped song and a song with neither under "Zz …" artists
+  - `scripts/ci/setup-jellyfin.sh` runs the startup wizard, adds the library, waits for the zip placeholders, creates an API key and a playlist, and writes `.env.local`
+  - `scripts/ci/plugin-checks.js` checks `/Karaoke/Songs`, the render estimate/start/cancel/progress, admin-only access and the video cache
+- On failure, the Playwright report, test results and Jellyfin's log are uploaded as the `test-results` artifact
 - Docker build (`.github/workflows/docker-publish.yml`) only runs on main pushes, not PRs
 - Concurrency group cancels stale runs on new pushes
 
