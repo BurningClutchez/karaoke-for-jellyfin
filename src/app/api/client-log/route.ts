@@ -21,7 +21,8 @@ export function resetClientLogLimits() {
 }
 
 export async function POST(request: NextRequest) {
-  const client = request.headers.get("x-forwarded-for") || "local";
+  // Set by server.js from the connection (or a trusted proxy), never the client
+  const client = request.headers.get("x-karaoke-client-address") || "local";
   if (!allowed(client, Date.now())) {
     return new NextResponse(null, { status: 429 });
   }

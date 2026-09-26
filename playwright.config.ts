@@ -137,5 +137,10 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 60000,
+    // Headless TVs can't autoplay, so every song would look stuck to the
+    // playback watchdog and phones would get "TV seems stuck" notices
+    env: {
+      PLAYBACK_STALL_SECONDS: process.env.PLAYBACK_STALL_SECONDS ?? "0",
+    },
   },
 });
