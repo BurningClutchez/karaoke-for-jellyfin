@@ -13,6 +13,12 @@ const { getFairInsertionIndex } = require("./server/fair-rotation");
 const { guardSocketHandlers } = require("./server/socket-guard");
 const { tagClientAddress } = require("./server/client-address");
 const {
+  createPlaybackWatchdog,
+  stallSettings,
+  stallNotice,
+  CHECK_INTERVAL_MS,
+} = require("./server/playback-watchdog");
+const {
   installProcessHandlers,
   installGracefulShutdown,
 } = require("./server/process-safety");
@@ -319,6 +325,90 @@ app.prepare().then(() => {
 
   // Run cleanup every 2 minutes
   setInterval(cleanupStaleConnections, 2 * 60 * 1000);
+
+  /** Mark the current song skipped and start the next one, if any */
+  function skipCurrentSong() {
+    // Mark current song as skipped and move to next
+    const skippedSong = currentSession.currentSong;
+    skippedSong.status = "skipped";
+
+    // Remove skipped song from queue immediately
+    currentSession.queue = currentSession.queue.filter(
+      item => item.status !== "completed" && item.status !== "skipped"
+    );
+
+    // Update positions for remaining songs
+    currentSession.queue = currentSession.queue.map((item, index) => ({
+      ...item,
+      position: index,
+    }));
+
+    currentSession.currentSong = null;
+
+    // Reset playback state for the next song
+    if (currentSession.playbackState) {
+      currentSession.playbackState.currentTime = 0;
+      currentSession.playbackState.isPlaying = false;
+    } else {
+      currentSession.playbackState = {
+        isPlaying: false,
+        currentTime: 0,
+        volume: 80,
+        isMuted: false,
+        playbackRate: 1.0,
+        lyricsOffset: 0,
+      };
+    }
+
+    // Broadcast song ended
+    const sessionId = currentSession.id || "main-session";
+    io.to(sessionId).emit("song-ended", skippedSong);
+
+    // Start next song if available
+    const nextSong = currentSession.queue.find(
+      item => item.status === "pending"
+    );
+    if (nextSong) {
+      nextSong.status = "playing";
+      currentSession.currentSong = nextSong;
+
+      // Ensure playback state is ready for new song
+      currentSession.playbackState.isPlaying = true;
+      currentSession.playbackState.currentTime = 0; // Explicitly reset to 0
+
+      io.to(sessionId).emit("song-started", nextSong);
+      io.to(sessionId).emit("queue-updated", currentSession.queue);
+      io.to(sessionId).emit(
+        "playback-state-changed",
+        currentSession.playbackState
+      );
+    }
+  }
+
+  // Notice a TV that stopped playing (server/playback-watchdog.js)
+  const stall = stallSettings();
+  const playbackWatchdog = createPlaybackWatchdog({
+    getSession: () => currentSession,
+    isTvConnected: () =>
+      !!currentSession?.connectedUsers?.some(u => u.name === "TV Display"),
+    stallMs: stall.stallMs,
+  });
+  if (stall.stallMs > 0) {
+    setInterval(() => {
+      const stalled = playbackWatchdog.check();
+      if (!stalled) return;
+      const title = stalled.song.mediaItem?.title || "the current song";
+      console.warn(
+        `[playback] no progress on the TV for ${stalled.seconds}s during "${title}"` +
+          (stall.action === "skip" ? "; skipping it" : "")
+      );
+      io.to(currentSession.id || "main-session").emit("notice", {
+        level: "warn",
+        message: stallNotice(title, stall.action),
+      });
+      if (stall.action === "skip") skipCurrentSong();
+    }, CHECK_INTERVAL_MS).unref();
+  }
 
   // Basic WebSocket connection handling with session management
   io.on("connection", socket => {
@@ -886,6 +976,9 @@ app.prepare().then(() => {
           case "time-update":
             if (command.value !== undefined && currentSession.playbackState) {
               currentSession.playbackState.currentTime = command.value;
+              if (playbackWatchdog.noteProgress(command.value)) {
+                console.log("[playback] the TV is making progress again");
+              }
               // Broadcast to other clients so admin UI stays in sync
               socket.broadcast.emit(
                 "playback-state-changed",
@@ -940,61 +1033,7 @@ app.prepare().then(() => {
         return;
       }
 
-      // Mark current song as skipped and move to next
-      const skippedSong = currentSession.currentSong;
-      skippedSong.status = "skipped";
-
-      // Remove skipped song from queue immediately
-      currentSession.queue = currentSession.queue.filter(
-        item => item.status !== "completed" && item.status !== "skipped"
-      );
-
-      // Update positions for remaining songs
-      currentSession.queue = currentSession.queue.map((item, index) => ({
-        ...item,
-        position: index,
-      }));
-
-      currentSession.currentSong = null;
-
-      // Reset playback state for the next song
-      if (currentSession.playbackState) {
-        currentSession.playbackState.currentTime = 0;
-        currentSession.playbackState.isPlaying = false;
-      } else {
-        currentSession.playbackState = {
-          isPlaying: false,
-          currentTime: 0,
-          volume: 80,
-          isMuted: false,
-          playbackRate: 1.0,
-          lyricsOffset: 0,
-        };
-      }
-
-      // Broadcast song ended
-      const sessionId = currentSession.id || "main-session";
-      io.to(sessionId).emit("song-ended", skippedSong);
-
-      // Start next song if available
-      const nextSong = currentSession.queue.find(
-        item => item.status === "pending"
-      );
-      if (nextSong) {
-        nextSong.status = "playing";
-        currentSession.currentSong = nextSong;
-
-        // Ensure playback state is ready for new song
-        currentSession.playbackState.isPlaying = true;
-        currentSession.playbackState.currentTime = 0; // Explicitly reset to 0
-
-        io.to(sessionId).emit("song-started", nextSong);
-        io.to(sessionId).emit("queue-updated", currentSession.queue);
-        io.to(sessionId).emit(
-          "playback-state-changed",
-          currentSession.playbackState
-        );
-      }
+      skipCurrentSong();
     });
 
     socket.on("song-ended", () => {
