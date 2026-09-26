@@ -1,5 +1,6 @@
 import { expect, Page, BrowserContext } from "@playwright/test";
 import { test as base, createBdd } from "playwright-bdd";
+import { clearQueue } from "./queue-cleanup";
 
 const test = base.extend<{
   alicePage: Page;
@@ -43,20 +44,22 @@ const { Given, When, Then } = createBdd(test);
 
 const BASE_URL = "http://localhost:3000";
 
-async function clearQueue(page: Page): Promise<void> {
-  const response = await page.request.get(`${BASE_URL}/api/queue`);
-  const data = await response.json();
-  if (data.queue) {
-    for (const item of data.queue) {
-      await page.request.delete(
-        `${BASE_URL}/api/queue?queueItemId=${item.id}&userId=test`
-      );
-    }
-  }
-  await page.request.put(`${BASE_URL}/api/queue`, {
-    data: { action: "skip", userId: "test" },
-  });
-}
+// DISABLED (kept for reference): the REST queue API is read-only now; the
+// shared clearQueue in ./queue-cleanup removes songs over Socket.IO.
+// async function clearQueue(page: Page): Promise<void> {
+//   const response = await page.request.get(`${BASE_URL}/api/queue`);
+//   const data = await response.json();
+//   if (data.queue) {
+//     for (const item of data.queue) {
+//       await page.request.delete(
+//         `${BASE_URL}/api/queue?queueItemId=${item.id}&userId=test`
+//       );
+//     }
+//   }
+//   await page.request.put(`${BASE_URL}/api/queue`, {
+//     data: { action: "skip", userId: "test" },
+//   });
+// }
 
 async function joinSession(page: Page, userName: string): Promise<void> {
   await page.goto(BASE_URL);

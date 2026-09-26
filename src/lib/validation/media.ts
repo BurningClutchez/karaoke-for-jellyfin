@@ -9,6 +9,9 @@ import {
   isValidUrl,
 } from "./primitives";
 
+const isAppPath = (value: unknown) =>
+  isString(value) && /^\/[^/\\]/.test(value as string);
+
 export const isValidMediaItem: TypeGuard<MediaItem> = (
   value
 ): value is MediaItem => {
@@ -25,7 +28,8 @@ export const isValidMediaItem: TypeGuard<MediaItem> = (
     isPositiveNumber(v.duration) &&
     isString(v.jellyfinId) &&
     (v.jellyfinId as string).length > 0 &&
-    isValidUrl(v.streamUrl) &&
+    // Songs stream through the app's own proxy, e.g. /api/stream/<id>
+    (isValidUrl(v.streamUrl) || isAppPath(v.streamUrl)) &&
     (v.album === undefined || isString(v.album)) &&
     (v.lyricsPath === undefined || isString(v.lyricsPath))
   );

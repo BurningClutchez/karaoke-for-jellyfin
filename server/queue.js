@@ -1,7 +1,8 @@
 const session = require("./session");
 const { startPlayback } = require("./playback");
 const { generateRandomRating } = require("./rating");
-const { syncWithApiQueue } = require("./queue-sync");
+// DISABLED with the REST session store (kept for reference)
+// const { syncWithApiQueue } = require("./queue-sync");
 const {
   getSessionOrError,
   reindexQueue,
@@ -49,7 +50,7 @@ function handleAddSong(io, socket, data) {
     io.to(sessionId).emit("playback-state-changed", s.playbackState);
   }
 
-  syncWithApiQueue(mediaItem, user, position);
+  // syncWithApiQueue(mediaItem, user, position); // DISABLED, see above
   io.to(s.id).emit("queue-updated", s.queue);
   io.to("main-session").emit("queue-updated", s.queue);
 }

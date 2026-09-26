@@ -13,6 +13,11 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # Jellyfin CI starts in Docker, with the Karaoke CDG plugin from this commit
+      JELLYFIN_IMAGE: jellyfin/jellyfin:12.1
+      JELLYFIN_DIR: ${{ github.workspace }}/.ci-jellyfin
 
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +26,10 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
 
       - run: npm ci
 
@@ -39,17 +48,51 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Build the Karaoke CDG plugin
+        run: dotnet publish jellyfin-plugin/Jellyfin.Plugin.KaraokeCdg -c Release -o jellyfin-plugin/artifacts
+
+      - name: Build the test music library
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          scripts/ci/make-library.sh "$JELLYFIN_DIR/music"
+
+      - name: Start Jellyfin with the plugin
+        run: |
+          mkdir -p "$JELLYFIN_DIR/config/plugins/KaraokeCdg_1.0.0.0" "$JELLYFIN_DIR/cache"
+          cp jellyfin-plugin/artifacts/Jellyfin.Plugin.KaraokeCdg.dll "$JELLYFIN_DIR/config/plugins/KaraokeCdg_1.0.0.0/"
+          docker run -d --name jellyfin -p 8096:8096 \
+            -v "$JELLYFIN_DIR/config:/config" \
+            -v "$JELLYFIN_DIR/cache:/cache" \
+            -v "$JELLYFIN_DIR/music:/music:ro" \
+            "$JELLYFIN_IMAGE"
+
+      - name: Set up Jellyfin (wizard, library, API key, playlist)
+        run: scripts/ci/setup-jellyfin.sh /music .env.local
+
+      - name: Check Jellyfin connection
+        run: node scripts/check-jellyfin.js
+
+      - name: Karaoke CDG plugin checks
+        run: node scripts/ci/plugin-checks.js
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Create .env.local for acceptance tests
-        run: |
-          echo "JELLYFIN_SERVER_URL=${{ secrets.JELLYFIN_SERVER_URL }}" > .env.local
-          echo "JELLYFIN_API_KEY=${{ secrets.JELLYFIN_API_KEY }}" >> .env.local
-          echo "JELLYFIN_USERNAME=${{ secrets.JELLYFIN_USERNAME }}" >> .env.local
+      # Every project, headless and headed (full-playback needs the xvfb display)
+      - name: Acceptance tests
+        run: npx bddgen && xvfb-run -a npx playwright test
 
-      - name: Acceptance tests (headless)
-        run: npx bddgen && npx playwright test --project=single-user --project=multi-user
+      - name: Collect Jellyfin log
+        if: failure()
+        run: docker logs jellyfin > jellyfin.log 2>&1 || true
 
-      - name: Full playback tests (headed via xvfb)
-        run: xvfb-run npx playwright test --project=full-playback
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            playwright-report/
+            test-results/
+            jellyfin.log
+          retention-days: 7

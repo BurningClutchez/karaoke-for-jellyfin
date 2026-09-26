@@ -62,3 +62,6 @@ README.md
 # Temporary files
 tmp
 temp
+
+# Jellyfin plugin sources (built separately)
+jellyfin-plugin

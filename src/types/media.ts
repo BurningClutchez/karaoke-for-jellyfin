@@ -10,6 +10,7 @@ export interface MediaItem {
   streamUrl: string;
   lyricsPath?: string;
   hasLyrics?: boolean; // From Jellyfin's HasLyrics field
+  hasGraphics?: boolean; // Has CD+G karaoke graphics
   metadata?: MediaMetadata;
 }
 

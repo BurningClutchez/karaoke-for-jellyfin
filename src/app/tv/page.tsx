@@ -1,11 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { useTVDisplay } from "@/hooks/useTVDisplay";
 import { QueuePreview } from "@/components/tv/QueuePreview";
 import { HostControls } from "@/components/tv/HostControls";
 import { AudioPlayer } from "@/components/tv/AudioPlayer";
 import { NextUpSidebar } from "@/components/tv/NextUpSidebar";
-import { QRCode } from "@/components/tv/QRCode";
+import { JoinQRCode } from "@/components/tv/JoinQRCode";
 import { ApplausePlayer } from "@/components/tv/ApplausePlayer";
 import { FloatingReactions } from "@/components/tv/FloatingReactions";
 import {
@@ -17,6 +18,7 @@ import { useConfig } from "@/contexts/ConfigContext";
 
 export default function TVDisplay() {
   const config = useConfig();
+  const audioElementRef = useRef<HTMLMediaElement | null>(null);
   const {
     isClient,
     isConnected,
@@ -37,6 +39,7 @@ export default function TVDisplay() {
     handleEmergencyStop,
     handleSongEnded,
     handleTimeUpdate,
+    handlePlaybackFailed,
     skipSong,
     playbackControl,
     removeSong,
@@ -58,22 +61,7 @@ export default function TVDisplay() {
     >
       <ConnectionStatus isConnected={isConnected} />
 
-      <div className="absolute top-16 right-4 z-40">
-        <div className="text-center">
-          <QRCode
-            url={
-              typeof window !== "undefined"
-                ? window.location.origin
-                : "http://localhost:3000"
-            }
-            size={80}
-            className="opacity-60 hover:opacity-100 transition-opacity duration-300"
-          />
-          <div className="text-xs text-gray-400 mt-1 opacity-60">
-            Scan to join
-          </div>
-        </div>
-      </div>
+      <JoinQRCode />
 
       {error && (
         <div className="absolute top-4 left-4 right-4 z-50">
@@ -97,6 +85,7 @@ export default function TVDisplay() {
         config={config}
         onRatingComplete={handleRatingComplete}
         onNextSongComplete={handleNextSongComplete}
+        audioRef={audioElementRef}
       />
 
       {showQueuePreview && (
@@ -127,15 +116,14 @@ export default function TVDisplay() {
         onPlaybackControl={playbackControl}
         onSongEnded={handleSongEnded}
         onTimeUpdate={handleTimeUpdate}
+        mediaRef={audioElementRef}
+        onPlaybackFailed={handlePlaybackFailed}
       />
-
       <ApplausePlayer
         isPlaying={transitionState.displayState === "applause"}
         volume={60}
       />
-
       <NextUpSidebar queue={queue} currentSong={currentSong} />
-
       <FloatingReactions reactions={reactions} />
 
       <div className="absolute bottom-4 left-4 text-gray-500 text-sm">

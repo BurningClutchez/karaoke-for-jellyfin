@@ -1,8 +1,11 @@
 // Debug endpoint to test stream URLs
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
+import { debugRouteNotFound, debugRoutesEnabled } from "@/lib/debugRoutes";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 export async function GET(request: NextRequest) {
+  if (!debugRoutesEnabled()) return debugRouteNotFound();
   try {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get("itemId");
@@ -29,10 +32,10 @@ export async function GET(request: NextRequest) {
     const streamUrl = await jellyfinService.getDirectStreamUrl(itemId);
 
     // Test if the stream URL is accessible
-    const testResponse = await fetch(streamUrl, {
+    const testResponse = await jellyfinFetch(streamUrl, {
       method: "HEAD", // Just check headers, don't download content
       headers: {
-        "X-Emby-Token": process.env.JELLYFIN_API_KEY || "",
+        Authorization: mediaBrowserToken(process.env.JELLYFIN_API_KEY || ""),
         "User-Agent": "Karaoke-For-Jellyfin/1.0",
       },
     });

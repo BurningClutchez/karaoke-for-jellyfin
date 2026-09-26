@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:crap": "node scripts/crap-check.js",
+    "check:jellyfin": "node scripts/check-jellyfin.js",
     "test:acceptance": "npx bddgen && npx playwright test",
     "prepare": "husky"
   },

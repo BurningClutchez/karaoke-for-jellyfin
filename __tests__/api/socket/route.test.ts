@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/websocket", () => ({
-  initializeWebSocket: vi.fn(),
-}));
+// The route no longer imports @/lib/websocket (disabled), so no mock is needed
+// vi.mock("@/lib/websocket", () => ({
+//   initializeWebSocket: vi.fn(),
+// }));
 
 import { GET } from "@/app/api/socket/route";
 

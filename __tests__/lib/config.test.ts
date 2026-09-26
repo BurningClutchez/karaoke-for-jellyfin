@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getServerConfig } from "@/lib/config";
+import { getServerConfig, parseCdgMode } from "@/lib/config";
 
 describe("getServerConfig", () => {
   const originalEnv = process.env;
@@ -103,6 +103,23 @@ describe("getServerConfig", () => {
     expect(config).toHaveProperty("timeUpdateInterval");
     expect(config).toHaveProperty("ratingAnimationDuration");
     expect(config).toHaveProperty("nextSongDuration");
-    expect(Object.keys(config)).toHaveLength(6);
+    expect(config).toHaveProperty("cdgMode");
+    expect(Object.keys(config)).toHaveLength(7);
+  });
+
+  it("should default cdgMode to auto", () => {
+    delete process.env.CDG_MODE;
+    expect(getServerConfig().cdgMode).toBe("auto");
+  });
+
+  it("should read a valid CDG_MODE case-insensitively", () => {
+    process.env.CDG_MODE = "Video";
+    expect(getServerConfig().cdgMode).toBe("video");
+    delete process.env.CDG_MODE;
+  });
+
+  it("should fall back to auto for an unknown CDG_MODE", () => {
+    expect(parseCdgMode("sideways")).toBe("auto");
+    expect(parseCdgMode("off")).toBe("off");
   });
 });

@@ -32,6 +32,7 @@ export interface UseTVDisplayReturn {
   handleEmergencyStop: () => void;
   handleSongEnded: () => void;
   handleTimeUpdate: (currentTime: number) => void;
+  handlePlaybackFailed: (reason: string) => void;
 
   // WebSocket actions
   skipSong: () => void;

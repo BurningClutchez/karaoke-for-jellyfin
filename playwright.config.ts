@@ -53,6 +53,12 @@ const favoritesHistoryTestDir = defineBddConfig({
   steps: "e2e/steps/favorites-history.steps.ts",
 });
 
+const cdgGraphicsTestDir = defineBddConfig({
+  outputDir: ".features-gen/cdg-graphics",
+  features: "e2e/features/cdg-graphics.feature",
+  steps: "e2e/steps/cdg-graphics.steps.ts",
+});
+
 const fullPlaybackTestDir = defineBddConfig({
   outputDir: ".features-gen/full-playback",
   features: "e2e/features/full-playback.feature",
@@ -106,6 +112,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       timeout: 60000,
       fullyParallel: false,
+    },
+    {
+      name: "cdg-graphics",
+      testDir: cdgGraphicsTestDir,
+      use: { ...devices["Desktop Chrome"] },
+      timeout: 90000,
     },
     {
       name: "full-playback",

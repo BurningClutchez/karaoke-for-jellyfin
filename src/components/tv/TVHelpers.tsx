@@ -1,4 +1,5 @@
-import { LyricsDisplay } from "@/components/tv/LyricsDisplay";
+import type { RefObject } from "react";
+import { SongDisplay } from "@/components/tv/SongDisplay";
 import { WaitingScreen } from "@/components/tv/WaitingScreen";
 import { RatingAnimation } from "@/components/tv/RatingAnimation";
 import { NextSongSplash } from "@/components/tv/NextSongSplash";
@@ -75,6 +76,7 @@ export interface MainContentProps {
   config: AppConfig;
   onRatingComplete: () => void;
   onNextSongComplete: () => void;
+  audioRef?: RefObject<HTMLMediaElement | null>;
 }
 
 export function MainContent({
@@ -87,13 +89,16 @@ export function MainContent({
   config,
   onRatingComplete,
   onNextSongComplete,
+  audioRef,
 }: MainContentProps) {
   if (transitionState.displayState === "playing" && currentSong) {
     return (
-      <LyricsDisplay
+      <SongDisplay
         song={currentSong}
         playbackState={playbackState}
         isConnected={isConnected}
+        cdgMode={config.cdgMode ?? "auto"}
+        audioRef={audioRef}
       />
     );
   }

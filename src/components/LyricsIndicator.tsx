@@ -17,6 +17,8 @@ export function LyricsIndicator({
 }: LyricsIndicatorProps) {
   // Use Jellyfin's authoritative HasLyrics field, with fallback to lyricsPath check
   const hasLyrics = song.hasLyrics ?? Boolean(song.lyricsPath);
+  // CD+G graphics make a song singable even without lyrics
+  const singable = hasLyrics || song.hasGraphics === true;
 
   // Size classes
   const sizeClasses = {
@@ -42,7 +44,7 @@ export function LyricsIndicator({
   let content: React.ReactNode;
   let tooltip: string;
 
-  if (hasLyrics) {
+  if (singable) {
     stateClasses = "bg-green-100 text-green-800 border border-green-200";
     content =
       variant === "badge" ? (
@@ -71,7 +73,7 @@ export function LyricsIndicator({
       ) : (
         "Karaoke"
       );
-    tooltip = "Lyrics available";
+    tooltip = hasLyrics ? "Lyrics available" : "CD+G karaoke graphics";
   } else {
     stateClasses = "bg-gray-100 text-gray-600 border border-gray-200";
     content =

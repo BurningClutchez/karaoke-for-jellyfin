@@ -1,0 +1,20 @@
+# Manifest for jprm (https://github.com/oddstr13/jellyfin-plugin-repository-manager)
+name: "Karaoke CDG"
+guid: "1cb1fb71-1f2b-46c8-8544-3491558b01ec"
+version: "1.0.0.0"
+targetAbi: "12.1.0.0"
+framework: "net10.0"
+owner: "karaoke-for-jellyfin"
+overview: "Serves .cdg karaoke graphics for Karaoke for Jellyfin"
+description: >
+  Adds a Karaoke channel that plays each song with a .cdg file as a video
+  (graphics and audio) in Jellyfin's own apps, and makes zipped karaoke songs
+  (one .cdg and one audio file per zip) searchable through placeholder songs,
+  extracting them only when they are played. Also exposes the raw .cdg file
+  (GET /Karaoke/Cdg/{itemId}) and a rendered, cached video of the graphics
+  (GET /Karaoke/Video/{itemId}) for Karaoke for Jellyfin.
+category: "General"
+artifacts:
+  - "Jellyfin.Plugin.KaraokeCdg.dll"
+changelog: >
+  Initial release.

@@ -88,13 +88,13 @@ describe("GET /api/debug/stream-test", () => {
     // Verify fetch was called with HEAD method and correct headers
     expect(mockFetch).toHaveBeenCalledWith(
       "http://jellyfin:8096/Audio/song-123/universal?userId=user1&api_key=key",
-      {
+      expect.objectContaining({
         method: "HEAD",
         headers: {
-          "X-Emby-Token": "test-api-key",
+          Authorization: 'MediaBrowser Token="test-api-key"',
           "User-Agent": "Karaoke-For-Jellyfin/1.0",
         },
-      }
+      })
     );
   });
 
@@ -182,7 +182,7 @@ describe("GET /api/debug/stream-test", () => {
       expect.any(String),
       expect.objectContaining({
         headers: expect.objectContaining({
-          "X-Emby-Token": "",
+          Authorization: 'MediaBrowser Token=""',
         }),
       })
     );

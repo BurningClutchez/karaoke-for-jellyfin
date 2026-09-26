@@ -46,3 +46,5 @@ next-env.d.ts
 *.apk
 android-tv-build/
 cypress/screenshots
+# CI Jellyfin (scripts/ci)
+.ci-jellyfin/

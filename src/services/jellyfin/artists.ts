@@ -2,6 +2,7 @@
 import { Artist } from "@/types";
 import type { JellyfinContext, JellyfinArtistSearchResponse } from "./types";
 import { transformArtists } from "./transforms";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
  * Search for artists by name
@@ -33,11 +34,11 @@ export async function searchArtists(
       `Artist search URL: ${ctx.baseUrl}/Items?${searchParams.toString()}`
     );
 
-    const response = await fetch(
+    const response = await jellyfinFetch(
       `${ctx.baseUrl}/Items?${searchParams.toString()}`,
       {
         headers: {
-          "X-Emby-Token": ctx.apiKey,
+          Authorization: mediaBrowserToken(ctx.apiKey),
           "Content-Type": "application/json",
         },
       }

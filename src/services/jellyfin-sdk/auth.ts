@@ -1,6 +1,8 @@
 // Authentication and library discovery for the Jellyfin SDK service
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 interface VirtualFolder {
+  Name?: string;
   CollectionType?: string;
   ItemId?: string;
 }
@@ -11,6 +13,27 @@ interface JellyfinUser {
 }
 
 /**
+ * Pick the library to browse: the one named by JELLYFIN_MUSIC_LIBRARY, else
+ * the only music library. With several music libraries (for example the
+ * Karaoke placeholder library next to the main one) returns null, meaning
+ * "search all of them".
+ */
+export function chooseMusicLibrary(
+  libraries: VirtualFolder[],
+  wanted: string | undefined = process.env.JELLYFIN_MUSIC_LIBRARY
+): string | null {
+  const music = libraries.filter(lib => lib.CollectionType === "music");
+  if (wanted) {
+    const named = music.find(
+      lib => lib.Name?.toLowerCase() === wanted.toLowerCase()
+    );
+    if (named) return named.ItemId ?? null;
+    console.warn(`JELLYFIN_MUSIC_LIBRARY "${wanted}" not found; using all`);
+  }
+  return music.length === 1 ? (music[0].ItemId ?? null) : null;
+}
+
+/**
  * Find the Music library ID from Jellyfin virtual folders
  */
 export async function fetchMusicLibraryId(
@@ -18,10 +41,10 @@ export async function fetchMusicLibraryId(
   apiKey: string
 ): Promise<string | null> {
   try {
-    const response = await fetch(`${baseUrl}/Library/VirtualFolders`, {
+    const response = await jellyfinFetch(`${baseUrl}/Library/VirtualFolders`, {
       method: "GET",
       headers: {
-        "X-Emby-Token": apiKey,
+        Authorization: mediaBrowserToken(apiKey),
         "Content-Type": "application/json",
       },
     });
@@ -31,15 +54,13 @@ export async function fetchMusicLibraryId(
     }
 
     const libraries: VirtualFolder[] = await response.json();
-    const musicLibrary = libraries.find(lib => lib.CollectionType === "music");
-
-    if (musicLibrary) {
-      console.log(`Found Music library with ID: ${musicLibrary.ItemId}`);
-      return musicLibrary.ItemId ?? null;
-    }
-
-    console.warn("No Music library found");
-    return null;
+    const libraryId = chooseMusicLibrary(libraries);
+    console.log(
+      libraryId
+        ? `Using music library ${libraryId}`
+        : "Searching all music libraries"
+    );
+    return libraryId;
   } catch (error) {
     console.error("Error getting Music library ID:", error);
     return null;
@@ -56,10 +77,10 @@ export async function authenticateUser(
   username: string
 ): Promise<string | null> {
   try {
-    const response = await fetch(`${baseUrl}/Users`, {
+    const response = await jellyfinFetch(`${baseUrl}/Users`, {
       method: "GET",
       headers: {
-        "X-Emby-Token": apiKey,
+        Authorization: mediaBrowserToken(apiKey),
         "Content-Type": "application/json",
       },
     });
@@ -106,10 +127,10 @@ export async function checkHealth(
   apiKey: string
 ): Promise<boolean> {
   try {
-    const response = await fetch(`${baseUrl}/System/Info`, {
+    const response = await jellyfinFetch(`${baseUrl}/System/Info`, {
       method: "GET",
       headers: {
-        "X-Emby-Token": apiKey,
+        Authorization: mediaBrowserToken(apiKey),
         "Content-Type": "application/json",
       },
     });

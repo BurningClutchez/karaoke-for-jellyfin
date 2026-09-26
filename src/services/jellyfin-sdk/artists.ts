@@ -2,6 +2,7 @@
 import { Artist } from "@/types";
 import { JellyfinContext } from "./types";
 import { transformArtists } from "./transformers";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
  * Search for artists by name
@@ -31,10 +32,10 @@ export async function searchArtists(
   }
 
   const artistsUrl = `${ctx.baseUrl}/Artists?${params}`;
-  const response = await fetch(artistsUrl, {
+  const response = await jellyfinFetch(artistsUrl, {
     method: "GET",
     headers: {
-      "X-Emby-Token": ctx.apiKey,
+      Authorization: mediaBrowserToken(ctx.apiKey),
       "Content-Type": "application/json",
     },
   });
@@ -80,10 +81,10 @@ export async function getAllArtists(
   }
 
   const artistsUrl = `${ctx.baseUrl}/Artists?${params}`;
-  const response = await fetch(artistsUrl, {
+  const response = await jellyfinFetch(artistsUrl, {
     method: "GET",
     headers: {
-      "X-Emby-Token": ctx.apiKey,
+      Authorization: mediaBrowserToken(ctx.apiKey),
       "Content-Type": "application/json",
     },
   });

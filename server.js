@@ -1,11 +1,28 @@
 // Custom server for Next.js with WebSocket support
+// First, so every later log line goes through it
+const { installLogger, logRequest } = require("./server/logger");
+installLogger();
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
 const fetch = require("node-fetch");
 const { handleSendReaction } = require("./server/reactions");
+const { handlePlaybackFailed } = require("./server/playback-failure");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
+const { guardSocketHandlers } = require("./server/socket-guard");
+const {
+  installProcessHandlers,
+  installGracefulShutdown,
+} = require("./server/process-safety");
+const {
+  check: checkJellyfin,
+  loadSettings: loadJellyfinSettings,
+} = require("./server/jellyfin-check");
+const {
+  prerenderCdgVideo,
+  prepareKaraokeSong,
+} = require("./server/cdg-prerender");
 
 // Simple rating generator for server-side use
 function generateRandomRating() {
@@ -151,6 +168,10 @@ function generateRandomRating() {
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = process.env.PORT || 3000;
+// DISABLED with the REST session sync below (kept for reference)
+// const selfUrl = `http://127.0.0.1:${port}`;
+
+installProcessHandlers();
 
 // When using middleware `hostname` and `port` must be provided below
 const app = next({ dev, hostname, port });
@@ -158,9 +179,15 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
+    const startedAt = Date.now();
+    res.on("finish", () => logRequest(req, res, startedAt));
     try {
       // Handle debug endpoint before Next.js
-      if (req.url === "/debug/websocket-state" && req.method === "GET") {
+      if (
+        req.url === "/debug/websocket-state" &&
+        req.method === "GET" &&
+        (dev || process.env.ENABLE_DEBUG_ROUTES === "true")
+      ) {
         res.writeHead(200, { "Content-Type": "application/json" });
 
         // Get unique users by name for display
@@ -243,6 +270,14 @@ app.prepare().then(() => {
   // Store for session management (simplified for server.js)
   let sessionManager = null;
   let currentSession = null;
+  // Read-only view of the live queue for GET /api/queue (same process)
+  globalThis.__karaokeQueueSnapshot = () =>
+    currentSession && {
+      queue: currentSession.queue,
+      currentSong: currentSession.currentSong || null,
+      playbackState: currentSession.playbackState || null,
+      session: { id: currentSession.id, name: currentSession.name },
+    };
   const connectedUsers = new Map();
 
   // Periodic cleanup of stale connections
@@ -285,6 +320,7 @@ app.prepare().then(() => {
 
   // Basic WebSocket connection handling with session management
   io.on("connection", socket => {
+    guardSocketHandlers(socket);
     console.log("Client connected:", socket.id);
     let currentUserId = null;
     let currentSessionId = null;
@@ -368,12 +404,12 @@ app.prepare().then(() => {
     }
 
     socket.on("join-session", data => {
-      console.log("Client joining session:", data);
+      console.debug("Client joining session:", data);
       const { sessionId, userName } = data;
 
-      console.log("Joining socket to room:", sessionId);
+      console.debug("Joining socket to room:", sessionId);
       socket.join(sessionId);
-      console.log("Socket rooms after join:", Array.from(socket.rooms));
+      console.debug("Socket rooms after join:", Array.from(socket.rooms));
 
       // Create or join session
       if (!currentSession) {
@@ -460,7 +496,7 @@ app.prepare().then(() => {
     });
 
     socket.on("add-song", async data => {
-      console.log("Adding song:", data);
+      console.debug("Adding song:", data);
 
       // Get the user for this socket
       const user = connectedUsers.get(socket.id);
@@ -483,9 +519,9 @@ app.prepare().then(() => {
         return;
       }
 
-      console.log("Current session exists:", !!currentSession);
-      console.log("Current user ID:", user.id);
-      console.log("Session ID:", currentSession.id);
+      console.debug("Current session exists:", !!currentSession);
+      console.debug("Current user ID:", user.id);
+      console.debug("Session ID:", currentSession.id);
       console.log(
         "Connected users in session:",
         currentSession.connectedUsers?.length
@@ -508,6 +544,11 @@ app.prepare().then(() => {
         const fairIndex = getFairInsertionIndex(currentSession.queue, user.id);
         currentSession.queue.splice(fairIndex, 0, queueItem);
       }
+
+      // Unzip a zipped karaoke song now, and render its CD+G graphics video
+      // ahead of its turn (the render is a no-op unless enabled)
+      prepareKaraokeSong(mediaItem);
+      prerenderCdgVideo(mediaItem);
 
       // Update positions
       currentSession.queue.forEach((item, index) => {
@@ -551,58 +592,60 @@ app.prepare().then(() => {
         console.log("Auto-started song:", queueItem.mediaItem.title);
       }
 
-      // SYNC WITH SESSION MANAGER: Also add to the API session manager
-      try {
-        const response = await fetch("http://localhost:3000/api/queue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "add-song",
-            mediaItem: mediaItem,
-            userId: user.id,
-            userName: user.name,
-            position: position,
-          }),
-        });
+      // DISABLED: the REST session store (src/services/session) never shared
+      // state with this queue, so every sync failed. Kept for reference.
+      // // SYNC WITH SESSION MANAGER: Also add to the API session manager
+      // try {
+      //   const response = await fetch(`${selfUrl}/api/queue`, {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({
+      //       action: "add-song",
+      //       mediaItem: mediaItem,
+      //       userId: user.id,
+      //       userName: user.name,
+      //       position: position,
+      //     }),
+      //   });
+      //
+      //   if (!response.ok) {
+      //     console.log(
+      //       "Failed to sync with session manager, creating session..."
+      //     );
+      //     // Try to create session first
+      //     await fetch(`${selfUrl}/api/queue`, {
+      //       method: "POST",
+      //       headers: { "Content-Type": "application/json" },
+      //       body: JSON.stringify({
+      //         action: "create-session",
+      //         userName: user.name,
+      //       }),
+      //     });
+      //
+      //     // Then try adding the song again
+      //     await fetch(`${selfUrl}/api/queue`, {
+      //       method: "POST",
+      //       headers: { "Content-Type": "application/json" },
+      //       body: JSON.stringify({
+      //         action: "add-song",
+      //         mediaItem: mediaItem,
+      //         userId: user.id,
+      //         userName: user.name,
+      //         position: position,
+      //       }),
+      //     });
+      //   }
+      //   console.log("Successfully synced with session manager");
+      // } catch (error) {
+      //   console.log("Failed to sync with session manager:", error.message);
+      // }
 
-        if (!response.ok) {
-          console.log(
-            "Failed to sync with session manager, creating session..."
-          );
-          // Try to create session first
-          await fetch("http://localhost:3000/api/queue", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "create-session",
-              userName: user.name,
-            }),
-          });
-
-          // Then try adding the song again
-          await fetch("http://localhost:3000/api/queue", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "add-song",
-              mediaItem: mediaItem,
-              userId: user.id,
-              userName: user.name,
-              position: position,
-            }),
-          });
-        }
-        console.log("Successfully synced with session manager");
-      } catch (error) {
-        console.log("Failed to sync with session manager:", error.message);
-      }
-
-      console.log("Broadcasting queue update to session:", currentSession.id);
-      console.log("Queue length:", currentSession.queue.length);
+      console.debug("Broadcasting queue update to session:", currentSession.id);
+      console.debug("Queue length:", currentSession.queue.length);
       console.log("Rooms for this socket:", Array.from(socket.rooms));
 
       // Broadcast queue update to ALL clients in the session room
-      console.log("Broadcasting to room:", currentSession.id);
+      console.debug("Broadcasting to room:", currentSession.id);
       io.to(currentSession.id).emit("queue-updated", currentSession.queue);
 
       // Also broadcast to main-session room as backup
@@ -612,7 +655,7 @@ app.prepare().then(() => {
     });
 
     socket.on("remove-song", data => {
-      console.log("Removing song:", data);
+      console.debug("Removing song:", data);
       if (!currentSession || !currentUserId) {
         socket.emit("error", {
           code: "NOT_IN_SESSION",
@@ -656,12 +699,12 @@ app.prepare().then(() => {
     });
 
     socket.on("playback-control", command => {
-      console.log("Playback control:", command);
+      console.debug("Playback control:", command);
 
       // Get the user for this socket
       const user = connectedUsers.get(socket.id);
-      console.log("Current user:", user?.name || "Unknown");
-      console.log("Current session exists:", !!currentSession);
+      console.debug("Current user:", user?.name || "Unknown");
+      console.debug("Current session exists:", !!currentSession);
 
       // Allow TV clients or users in session
       if (!user && !currentSession) {
@@ -849,7 +892,7 @@ app.prepare().then(() => {
             }
             break;
           case "lyrics-offset":
-            console.log("Processing lyrics-offset command:", command.value);
+            console.debug("Processing lyrics-offset command:", command.value);
             if (command.value !== undefined) {
               if (!currentSession.playbackState) {
                 currentSession.playbackState = {
@@ -1075,6 +1118,10 @@ app.prepare().then(() => {
       }
     });
 
+    socket.on("playback-failed", data =>
+      handlePlaybackFailed(io, socket, data, currentSession)
+    );
+
     socket.on("send-reaction", data => {
       handleSendReaction(io, socket, data, connectedUsers, currentSession);
     });
@@ -1110,5 +1157,18 @@ app.prepare().then(() => {
     .listen(port, () => {
       console.log(`> Ready on http://${hostname}:${port}`);
       console.log(`> WebSocket server running on port ${port}`);
+
+      // Say clearly at startup if Jellyfin isn't set up right (keeps running)
+      checkJellyfin(loadJellyfinSettings(process.env, ".env.local"))
+        .then(problems =>
+          problems.length === 0
+            ? console.log("[startup] Jellyfin connection OK")
+            : problems.forEach(problem => console.error(`[startup] ${problem}`))
+        )
+        .catch(error =>
+          console.error("[startup] Jellyfin check failed:", error.message)
+        );
     });
+
+  installGracefulShutdown({ server, io });
 });

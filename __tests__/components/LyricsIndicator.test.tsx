@@ -60,6 +60,15 @@ describe("LyricsIndicator", () => {
     expect(screen.getByTitle("No lyrics available")).toBeInTheDocument();
   });
 
+  it("shows 'Karaoke' for a song with CD+G graphics but no lyrics", () => {
+    render(
+      <LyricsIndicator song={{ ...songWithoutLyrics, hasGraphics: true }} />
+    );
+    const badge = screen.getByText("Karaoke").closest("span");
+    expect(badge).toHaveAttribute("title", "CD+G karaoke graphics");
+    expect(badge?.className).toContain("bg-green-100");
+  });
+
   it("falls back to lyricsPath when hasLyrics is undefined", () => {
     render(<LyricsIndicator song={songWithOnlyLyricsPath} variant="badge" />);
 

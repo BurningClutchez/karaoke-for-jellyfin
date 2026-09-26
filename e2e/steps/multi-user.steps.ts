@@ -1,5 +1,6 @@
 import { expect, Page, BrowserContext } from "@playwright/test";
 import { test as base, createBdd } from "playwright-bdd";
+import { clearQueue, skipCurrentSong } from "./queue-cleanup";
 
 // Extend the base test with multi-user fixtures providing isolated browser contexts
 const test = base.extend<{
@@ -46,37 +47,39 @@ const { Given, When, Then } = createBdd(test);
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function clearQueue(page: Page): Promise<void> {
-  const response = await page.request.get("http://localhost:3000/api/queue");
-  const data = await response.json();
-  const queue = data?.data?.queue || data?.queue || [];
-  for (const item of queue) {
-    if (item.status === "playing") {
-      await page.request.put("http://localhost:3000/api/queue", {
-        data: { action: "skip", userId: item.addedBy || "cleanup" },
-      });
-    } else {
-      await page.request.delete(
-        `http://localhost:3000/api/queue?itemId=${item.id}&userId=${item.addedBy || "cleanup"}`
-      );
-    }
-  }
-  // After skipping, wait for server to settle and re-check
-  const recheck = await page.request.get("http://localhost:3000/api/queue");
-  const recheckData = await recheck.json();
-  const remaining = recheckData?.data?.queue || recheckData?.queue || [];
-  for (const item of remaining) {
-    if (item.status === "playing") {
-      await page.request.put("http://localhost:3000/api/queue", {
-        data: { action: "skip", userId: item.addedBy || "cleanup" },
-      });
-    } else {
-      await page.request.delete(
-        `http://localhost:3000/api/queue?itemId=${item.id}&userId=${item.addedBy || "cleanup"}`
-      );
-    }
-  }
-}
+// DISABLED (kept for reference): the REST queue API is read-only now; the
+// shared clearQueue in ./queue-cleanup removes songs over Socket.IO.
+// async function clearQueue(page: Page): Promise<void> {
+//   const response = await page.request.get("http://localhost:3000/api/queue");
+//   const data = await response.json();
+//   const queue = data?.data?.queue || data?.queue || [];
+//   for (const item of queue) {
+//     if (item.status === "playing") {
+//       await page.request.put("http://localhost:3000/api/queue", {
+//         data: { action: "skip", userId: item.addedBy || "cleanup" },
+//       });
+//     } else {
+//       await page.request.delete(
+//         `http://localhost:3000/api/queue?itemId=${item.id}&userId=${item.addedBy || "cleanup"}`
+//       );
+//     }
+//   }
+//   // After skipping, wait for server to settle and re-check
+//   const recheck = await page.request.get("http://localhost:3000/api/queue");
+//   const recheckData = await recheck.json();
+//   const remaining = recheckData?.data?.queue || recheckData?.queue || [];
+//   for (const item of remaining) {
+//     if (item.status === "playing") {
+//       await page.request.put("http://localhost:3000/api/queue", {
+//         data: { action: "skip", userId: item.addedBy || "cleanup" },
+//       });
+//     } else {
+//       await page.request.delete(
+//         `http://localhost:3000/api/queue?itemId=${item.id}&userId=${item.addedBy || "cleanup"}`
+//       );
+//     }
+//   }
+// }
 
 async function joinSession(page: Page, userName: string): Promise<void> {
   await page.goto("/");
@@ -212,10 +215,9 @@ When(
 );
 
 When("the current song finishes on the TV", async ({ tvPage }) => {
-  // Skip the current song via API (more reliable than faking audio events in headless)
-  await tvPage.request.put("http://localhost:3000/api/queue", {
-    data: { action: "skip", userId: "Alice" },
-  });
+  // Skip the current song over Socket.IO (more reliable than faking audio events in headless)
+  // Was: PUT /api/queue {action: "skip"} (REST queue is read-only now)
+  await skipCurrentSong();
   await tvPage.waitForTimeout(2000);
 });
 
@@ -250,10 +252,9 @@ When("the first song finishes on the TV", async ({ tvPage }) => {
     .first();
   await expect(lyricsOrCountdown).toBeVisible({ timeout: 30000 });
 
-  // Skip the current song via API (Alice added it so she can skip)
-  await tvPage.request.put("http://localhost:3000/api/queue", {
-    data: { action: "skip", userId: "Alice" },
-  });
+  // Skip the current song over Socket.IO
+  // Was: PUT /api/queue {action: "skip"} (REST queue is read-only now)
+  await skipCurrentSong();
   await tvPage.waitForTimeout(2000);
 });
 

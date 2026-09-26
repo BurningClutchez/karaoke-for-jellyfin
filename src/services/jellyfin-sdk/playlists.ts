@@ -3,6 +3,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { MediaItem, Playlist } from "@/types";
 import { JellyfinContext } from "./types";
 import { transformMediaItems, transformPlaylists } from "./transformers";
+import { keepSingable, lyricsQueryParams } from "./singable";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
  * Get all music playlists from Jellyfin
@@ -26,10 +28,10 @@ export async function getPlaylists(
   });
 
   const playlistsUrl = `${ctx.baseUrl}/Items?${params}`;
-  const response = await fetch(playlistsUrl, {
+  const response = await jellyfinFetch(playlistsUrl, {
     method: "GET",
     headers: {
-      "X-Emby-Token": ctx.apiKey,
+      Authorization: mediaBrowserToken(ctx.apiKey),
       "Content-Type": "application/json",
     },
   });
@@ -64,15 +66,15 @@ export async function getPlaylistItems(
     limit: limit.toString(),
     startIndex: startIndex.toString(),
     userId: ctx.userId,
-    fields: "Artists,Album,RunTimeTicks,HasLyrics",
-    filters: "HasLyrics",
+    fields: "Artists,Album,RunTimeTicks,HasLyrics,Path",
+    ...lyricsQueryParams(),
   });
 
   const playlistItemsUrl = `${ctx.baseUrl}/Playlists/${playlistId}/Items?${params}`;
-  const response = await fetch(playlistItemsUrl, {
+  const response = await jellyfinFetch(playlistItemsUrl, {
     method: "GET",
     headers: {
-      "X-Emby-Token": ctx.apiKey,
+      Authorization: mediaBrowserToken(ctx.apiKey),
       "Content-Type": "application/json",
     },
   });
@@ -89,7 +91,7 @@ export async function getPlaylistItems(
   const audioItems = (data.Items || []).filter(
     (item: BaseItemDto) => item.Type === "Audio"
   );
-  const songs = transformMediaItems(audioItems);
+  const songs = transformMediaItems(await keepSingable(ctx, audioItems));
   console.log(`Transformed ${songs.length} songs from playlist`);
 
   return songs;

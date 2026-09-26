@@ -1,0 +1,32 @@
+name: Jellyfin plugin
+
+on:
+  push:
+    branches: [main]
+    paths: ["jellyfin-plugin/**", ".github/workflows/jellyfin-plugin.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["jellyfin-plugin/**", ".github/workflows/jellyfin-plugin.yml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        run: dotnet publish jellyfin-plugin/Jellyfin.Plugin.KaraokeCdg -c Release -o jellyfin-plugin/artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jellyfin-plugin-karaoke-cdg
+          path: jellyfin-plugin/artifacts/Jellyfin.Plugin.KaraokeCdg.dll

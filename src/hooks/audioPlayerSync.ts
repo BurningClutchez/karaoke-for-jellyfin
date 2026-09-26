@@ -1,4 +1,5 @@
 import { PlaybackState } from "@/types";
+import { describeMediaError } from "./useAudioRecovery";
 
 export interface AudioEventHandlers {
   onTimeUpdate: (currentTime: number) => void;
@@ -32,9 +33,10 @@ export function setupAudioEventListeners(
     console.log("Audio pause event");
   };
 
-  const handleError = (e: Event) => {
-    console.error("Audio playback error:", e);
-    handlers.setError("Playback error occurred");
+  const handleError = () => {
+    const reason = describeMediaError(audio.error);
+    console.error("Audio playback error:", reason);
+    handlers.setError(`Playback error: ${reason}`);
   };
 
   let timeUpdateThrottle: NodeJS.Timeout;

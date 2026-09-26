@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJellyfinService } from "@/services/jellyfin";
+import { getZipAudioSource } from "@/services/cdg/zipAudio";
+import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -21,13 +23,18 @@ export async function GET(
       );
     }
 
-    const jellyfinService = getJellyfinService();
-    const streamUrl = await jellyfinService.getDirectStreamUrl(itemId);
+    // Zipped karaoke songs stream their real audio from the plugin; the
+    // library item itself is a silent placeholder
+    const zipSource = await getZipAudioSource(itemId);
+    const streamUrl =
+      zipSource?.url ?? (await getJellyfinService().getDirectStreamUrl(itemId));
 
     const range = request.headers.get("range");
 
     const fetchHeaders: Record<string, string> = {
-      "X-Emby-Token": process.env.JELLYFIN_API_KEY || "",
+      ...(zipSource?.headers ?? {
+        Authorization: mediaBrowserToken(process.env.JELLYFIN_API_KEY || ""),
+      }),
       "User-Agent": "Karaoke-For-Jellyfin/1.0",
     };
 
@@ -35,7 +42,7 @@ export async function GET(
       fetchHeaders["Range"] = range;
     }
 
-    const response = await fetch(streamUrl, { headers: fetchHeaders });
+    const response = await jellyfinFetch(streamUrl, { headers: fetchHeaders });
 
     if (!response.ok && response.status !== 206) {
       return NextResponse.json(
