@@ -7,11 +7,18 @@ on:
       - master
     tags:
       - "v*"
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: mrorbitman/karaoke-for-jellyfin
+  # Set the DOCKER_IMAGE repository variable to publish under your own account
+  IMAGE_NAME: ${{ vars.DOCKER_IMAGE || 'mrorbitman/karaoke-for-jellyfin' }}
 
 jobs:
   build-and-push:
@@ -24,11 +31,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Pull requests and repositories without Docker Hub secrets still build the
+      # image (which checks the Dockerfile); only pushes with secrets publish it
+      - name: Decide whether to publish
+        id: publish
+        env:
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Pull request: building the image without publishing it"
+          elif [ -z "$USERNAME" ] || [ -z "$TOKEN" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DOCKERHUB_USERNAME and DOCKERHUB_TOKEN aren't set: building the image without publishing it"
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU (for the arm64 image)
+        if: steps.publish.outputs.push == 'true'
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
+        if: steps.publish.outputs.push == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -49,12 +78,13 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # A build-only run makes the amd64 image alone, to keep checks quick
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: ${{ steps.publish.outputs.push == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          push: ${{ steps.publish.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

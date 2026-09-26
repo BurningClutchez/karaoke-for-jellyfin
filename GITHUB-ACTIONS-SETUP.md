@@ -32,6 +32,16 @@ This document explains how to set up the GitHub Actions workflow to automaticall
 | `DOCKERHUB_USERNAME` | `mrorbitman`        | Your Docker Hub username     |
 | `DOCKERHUB_TOKEN`    | `your_access_token` | The access token from Step 1 |
 
+Without these secrets the workflow still builds the image, which checks the Dockerfile, but doesn't publish it.
+
+### Image name (optional variable)
+
+Images are published as `mrorbitman/karaoke-for-jellyfin` unless you set a repository **variable** (Settings → Secrets and variables → Actions → **Variables** tab):
+
+| Variable       | Value                                | Description                         |
+| -------------- | ------------------------------------ | ----------------------------------- |
+| `DOCKER_IMAGE` | `your-username/karaoke-for-jellyfin` | Docker Hub repository to publish to |
+
 ### Adding Each Secret
 
 1. Click **New repository secret**
@@ -47,7 +57,7 @@ The workflow file `.github/workflows/docker-publish.yml` is already configured t
 - **Trigger on**:
   - Push to `main` or `master` branch
   - New tags (e.g., `v1.0.0`)
-  - Pull requests (build only, no push)
+  - Pull requests (build only, no push, amd64 only)
   - Manual workflow dispatch
 
 - **Build for multiple architectures**:
@@ -94,9 +104,8 @@ git push origin v1.0.0
 ## Step 6: Verify Docker Hub
 
 1. Go to [Docker Hub](https://hub.docker.com/)
-2. Navigate to your repository: `mrorbitman/karaoke-for-jellyfin`
+2. Navigate to your repository (`DOCKER_IMAGE`, or `mrorbitman/karaoke-for-jellyfin` by default)
 3. Verify the image was pushed successfully
-4. Check that the README was updated automatically
 
 ## Workflow Features
 
@@ -114,12 +123,8 @@ The workflow uses GitHub Actions cache to speed up builds by caching Docker laye
 ### Security
 
 - Secrets are never exposed in logs
-- Only pushes images on main branch and tags (not on pull requests)
+- Only pushes images on main branch and tags (not on pull requests), and only when the Docker Hub secrets are set
 - Uses official GitHub Actions for security
-
-### Automatic README Updates
-
-The workflow automatically updates the Docker Hub repository description with the contents of `README-DOCKERHUB.md`.
 
 ## Troubleshooting
 
@@ -138,9 +143,8 @@ The workflow automatically updates the Docker Hub repository description with th
    - Some dependencies might not support all architectures
    - Check if base images support the target architecture
 
-4. **README Not Updated**
-   - Verify the `README-DOCKERHUB.md` file exists
-   - Check that the workflow has the correct file path
+4. **"Built without publishing" notice**
+   - `DOCKERHUB_USERNAME` or `DOCKERHUB_TOKEN` isn't set; add both to publish
 
 ### Viewing Logs
 
@@ -171,7 +175,7 @@ Once the workflow is set up and working:
 
 1. **Create releases**: Use semantic versioning (e.g., v1.0.0, v1.1.0)
 2. **Monitor usage**: Check Docker Hub for download statistics
-3. **Update documentation**: Keep README-DOCKERHUB.md up to date
+3. **Update documentation**: Keep README-DOCKERHUB.md up to date (copy it to Docker Hub's description by hand)
 4. **Security**: Regularly rotate access tokens
 
 ## Support

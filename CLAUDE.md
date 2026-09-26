@@ -90,7 +90,7 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
   - `scripts/ci/setup-jellyfin.sh` runs the startup wizard, adds the library, waits for the zip placeholders, creates an API key and a playlist, and writes `.env.local`
   - `scripts/ci/plugin-checks.js` checks `/Karaoke/Songs`, the render estimate/start/cancel/progress, admin-only access and the video cache
 - On failure, the Playwright report, test results and Jellyfin's log are uploaded as the `test-results` artifact
-- Docker build (`.github/workflows/docker-publish.yml`) only runs on main pushes, not PRs
+- Docker image (`.github/workflows/docker-publish.yml`): built on PRs and pushes to main; published only on main/tag pushes when the `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets are set, as `vars.DOCKER_IMAGE` (default `mrorbitman/karaoke-for-jellyfin`)
 - Concurrency group cancels stale runs on new pushes
 
 ## TV Display Transition Flow
