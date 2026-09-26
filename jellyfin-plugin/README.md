@@ -81,6 +81,7 @@ All endpoints need a Jellyfin API key or user token in `Authorization: MediaBrow
 | `GET /Karaoke/Video/{itemId}[?format=webm]` | The graphics as a silent 900×648 video (option C): H.264 MP4, or VP9 WebM. Rendered on first request, then cached. Supports range requests |
 | `GET /Karaoke/Prepare/{itemId}`             | Extracts a zipped song ahead of use; returns `{"ZipBacked": bool, "HasCdg": bool}`                                                         |
 | `GET /Karaoke/Audio/{itemId}`               | The real audio of a zipped song. Supports range requests                                                                                   |
+| `GET /Karaoke/Songs`                        | Ids of the songs with CD+G graphics, so Karaoke for Jellyfin can list them even without lyrics                                             |
 | `GET /Karaoke/Status`                       | Version, ffmpeg found, placeholder and extracted-song counts, settings warnings                                                            |
 | `GET /Karaoke/Render/Estimate`              | Admins: songs to render, estimated seconds and bytes, temporary bytes, free space                                                          |
 | `POST /Karaoke/Render/Start`                | Admins: starts rendering every song ahead                                                                                                  |

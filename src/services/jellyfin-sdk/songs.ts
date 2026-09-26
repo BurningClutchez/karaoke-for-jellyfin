@@ -1,6 +1,7 @@
 import { MediaItem } from "@/types";
 import { JellyfinContext, SongResult } from "./types";
 import { transformMediaItems } from "./transformers";
+import { keepSingable, lyricsQueryParams } from "./singable";
 import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 export async function getSongsByArtistId(
@@ -20,10 +21,10 @@ export async function getSongsByArtistId(
     limit: limit.toString(),
     startIndex: startIndex.toString(),
     userId: ctx.userId,
-    fields: "Artists,Album,RunTimeTicks,HasLyrics",
+    fields: "Artists,Album,RunTimeTicks,HasLyrics,Path",
     sortBy: "SortName",
     sortOrder: "Ascending",
-    filters: "HasLyrics",
+    ...lyricsQueryParams(),
   });
 
   const itemsUrl = `${ctx.baseUrl}/Items?${params}`;
@@ -45,11 +46,7 @@ export async function getSongsByArtistId(
     `Jellyfin returned ${data.Items?.length || 0} songs for artist ${artistId} (total: ${totalCount})`
   );
 
-  if (startIndex === 0) {
-    console.log(`Artist query URL: ${itemsUrl}`);
-  }
-
-  const songs = transformMediaItems(data.Items || []);
+  const songs = transformMediaItems(await keepSingable(ctx, data.Items || []));
 
   return { songs, totalCount };
 }
@@ -71,8 +68,8 @@ export async function searchByTitle(
     limit: limit.toString(),
     startIndex: startIndex.toString(),
     userId: ctx.userId,
-    fields: "Artists,Album,RunTimeTicks,HasLyrics",
-    filters: "HasLyrics",
+    fields: "Artists,Album,RunTimeTicks,HasLyrics,Path",
+    ...lyricsQueryParams(),
   });
 
   const itemsUrl = `${ctx.baseUrl}/Items?${params}`;
@@ -93,7 +90,7 @@ export async function searchByTitle(
     `Jellyfin returned ${data.Items?.length || 0} items for title search`
   );
 
-  const items = transformMediaItems(data.Items || []);
+  const items = transformMediaItems(await keepSingable(ctx, data.Items || []));
 
   const queryLower = query.toLowerCase();
   const filtered = items.filter(item =>
@@ -118,10 +115,10 @@ export async function getAllAudioItems(
     startIndex: startIndex.toString(),
     limit: limit.toString(),
     userId: ctx.userId,
-    fields: "Artists,Album,RunTimeTicks,HasLyrics",
+    fields: "Artists,Album,RunTimeTicks,HasLyrics,Path",
     sortBy: "SortName",
     sortOrder: "Ascending",
-    filters: "HasLyrics",
+    ...lyricsQueryParams(),
   });
 
   const itemsUrl = `${ctx.baseUrl}/Items?${params}`;
@@ -142,7 +139,9 @@ export async function getAllAudioItems(
     `Jellyfin audio items: ${data.Items?.length || 0} of ${data.TotalRecordCount}`
   );
 
-  const transformedItems = transformMediaItems(data.Items);
+  const transformedItems = transformMediaItems(
+    await keepSingable(ctx, data.Items || [])
+  );
   console.log(`Transformed items count: ${transformedItems.length}`);
   return transformedItems;
 }

@@ -60,6 +60,18 @@ Use the plugin when the karaoke app can't mount the library, for example when Je
 | `video`          | Always use plugin video. Useful for weak smart-TV browsers. Falls back to lyrics |
 | `off`            | Ignore `.cdg` files                                                              |
 
+## Which songs phones can pick
+
+`SONG_FILTER` decides which songs appear when singers browse or search:
+
+| Value               | Songs shown                                            |
+| ------------------- | ------------------------------------------------------ |
+| `karaoke` (default) | Songs with lyrics or CD+G graphics, badged **Karaoke** |
+| `lyrics`            | Only songs with lyrics (the behaviour before CD+G)     |
+| `all`               | Every song; songs with neither are badged Audio Only   |
+
+The app learns which songs have graphics from the plugin's `/Karaoke/Songs` list, which it caches for 5 minutes. The plugin rebuilds that list at most every 10 minutes, so a new song can take up to 15 minutes to appear. Without the plugin, the app looks for the `.cdg` file in the local mount (option A). With neither, only songs with lyrics are shown.
+
 ## Rendering ahead
 
 When a song is queued, the app asks the plugin to render its video straight away, so it's ready by the time the song comes up. Usually at least one song plays in between. Songs without a `.cdg` file get a quick 404, and nothing is rendered for them. This is on by default. Set `CDG_PRERENDER=false` to turn it off, for example if Jellyfin's CPU is weak and the TV draws graphics itself anyway. It's also off with `CDG_MODE=off`.

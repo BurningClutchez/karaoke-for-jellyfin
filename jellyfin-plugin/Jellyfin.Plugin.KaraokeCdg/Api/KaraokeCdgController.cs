@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Net.Mime;
 using Jellyfin.Plugin.KaraokeCdg.Configuration;
+using Jellyfin.Plugin.KaraokeCdg.Library;
 using Jellyfin.Plugin.KaraokeCdg.Zips;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
@@ -33,6 +35,12 @@ public sealed record KaraokeStatus(
     IReadOnlyList<string> SettingsWarnings);
 
 /// <summary>
+/// The songs that have CD+G graphics.
+/// </summary>
+/// <param name="ItemIds">Audio item ids (32 hex characters, no dashes).</param>
+public sealed record KaraokeSongList(IReadOnlyList<string> ItemIds);
+
+/// <summary>
 /// CDG endpoints used by Karaoke for Jellyfin. Requires a Jellyfin API key or user token.
 /// </summary>
 [ApiController]
@@ -58,6 +66,7 @@ public class KaraokeCdgController : ControllerBase
     private readonly PlaceholderIndex _placeholders;
     private readonly ZipExtractionCache _extractionCache;
     private readonly IMediaEncoder _mediaEncoder;
+    private readonly KaraokeLibraryIndex _index;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="KaraokeCdgController"/> class.
@@ -68,13 +77,15 @@ public class KaraokeCdgController : ControllerBase
     /// <param name="placeholders">Zip placeholder index.</param>
     /// <param name="extractionCache">Extraction cache.</param>
     /// <param name="mediaEncoder">Provides the ffmpeg path.</param>
+    /// <param name="index">Karaoke song index.</param>
     public KaraokeCdgController(
         ILibraryManager libraryManager,
         CdgVideoRenderer renderer,
         KaraokeSourceResolver resolver,
         PlaceholderIndex placeholders,
         ZipExtractionCache extractionCache,
-        IMediaEncoder mediaEncoder)
+        IMediaEncoder mediaEncoder,
+        KaraokeLibraryIndex index)
     {
         _libraryManager = libraryManager;
         _renderer = renderer;
@@ -82,7 +93,21 @@ public class KaraokeCdgController : ControllerBase
         _placeholders = placeholders;
         _extractionCache = extractionCache;
         _mediaEncoder = mediaEncoder;
+        _index = index;
     }
+
+    /// <summary>
+    /// Lists the songs that have CD+G graphics, so Karaoke for Jellyfin can offer them even
+    /// when they have no lyrics. The list is rebuilt at most every 10 minutes.
+    /// </summary>
+    /// <response code="200">The song ids.</response>
+    /// <returns>The song ids.</returns>
+    [HttpGet("Songs")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<KaraokeSongList> GetSongs() =>
+        new KaraokeSongList(_index.GetSongs()
+            .Select(song => song.Id.ToString("N", CultureInfo.InvariantCulture))
+            .ToList());
 
     /// <summary>
     /// Gets the plugin's status, used by Karaoke for Jellyfin's health check.

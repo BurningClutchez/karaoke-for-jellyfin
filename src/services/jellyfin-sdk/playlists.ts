@@ -3,6 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { MediaItem, Playlist } from "@/types";
 import { JellyfinContext } from "./types";
 import { transformMediaItems, transformPlaylists } from "./transformers";
+import { keepSingable, lyricsQueryParams } from "./singable";
 import { jellyfinFetch, mediaBrowserToken } from "@/lib/jellyfinFetch";
 
 /**
@@ -65,8 +66,8 @@ export async function getPlaylistItems(
     limit: limit.toString(),
     startIndex: startIndex.toString(),
     userId: ctx.userId,
-    fields: "Artists,Album,RunTimeTicks,HasLyrics",
-    filters: "HasLyrics",
+    fields: "Artists,Album,RunTimeTicks,HasLyrics,Path",
+    ...lyricsQueryParams(),
   });
 
   const playlistItemsUrl = `${ctx.baseUrl}/Playlists/${playlistId}/Items?${params}`;
@@ -90,7 +91,7 @@ export async function getPlaylistItems(
   const audioItems = (data.Items || []).filter(
     (item: BaseItemDto) => item.Type === "Audio"
   );
-  const songs = transformMediaItems(audioItems);
+  const songs = transformMediaItems(await keepSingable(ctx, audioItems));
   console.log(`Transformed ${songs.length} songs from playlist`);
 
   return songs;

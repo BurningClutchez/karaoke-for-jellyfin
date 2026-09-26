@@ -57,6 +57,7 @@ services:
       # - JELLYFIN_MUSIC_LIBRARY=Music   # browse only this library
       # - CDG_MODE=auto                  # auto | canvas | video | off (docs/CDG.md)
       # - CDG_PRERENDER=false            # don't render videos for queued songs
+      # - SONG_FILTER=karaoke           # karaoke (lyrics or CD+G) | lyrics | all
       # - LOG_LEVEL=info                 # debug | info | warn | error
     restart: unless-stopped
 ```
@@ -72,6 +73,7 @@ More settings, such as TV timings, are in [`.env.example`](.env.example); playli
 ## CD+G graphics in short
 
 - The TV draws `.cdg` graphics itself when it can, and falls back to a video rendered by the Jellyfin plugin, then to lyrics.
+- Phones list songs that have lyrics or CD+G graphics, both badged **Karaoke**. Set `SONG_FILTER=lyrics` to list only songs with lyrics, or `SONG_FILTER=all` to list every song.
 - Queued songs are rendered ahead by default, so the video is ready by the time the song comes up. Set `CDG_PRERENDER=false` to turn this off.
 - To render the **whole library** ahead of time, open **Dashboard → Plugins → Karaoke CDG** in Jellyfin and click **Render karaoke videos**. It first calculates how long this will take and how much space it needs, and asks you to confirm.
 - Rendered videos are cached like extracted zips. A video that isn't played for 30 days is deleted, except the 100 most recently played, and is rendered again when next needed. Both limits can be changed on the plugin's settings page.

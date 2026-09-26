@@ -1,6 +1,7 @@
 // Transform Jellyfin API responses into app domain models
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { MediaItem, Artist, Playlist } from "@/types";
+import type { SingableItem } from "./singable";
 
 /**
  * Transform Jellyfin artist items to our Artist format
@@ -31,26 +32,16 @@ function transformArtist(item: BaseItemDto, baseUrl: string): Artist | null {
 }
 
 /**
- * Transform Jellyfin audio items to our MediaItem format,
- * filtering to only songs with lyrics
+ * Transform Jellyfin audio items to our MediaItem format. Which songs are
+ * shown is decided before this, by keepSingable (SONG_FILTER).
  */
-export function transformMediaItems(items: BaseItemDto[]): MediaItem[] {
-  const transformed = items
+export function transformMediaItems(items: SingableItem[]): MediaItem[] {
+  return items
     .map(item => transformMediaItem(item))
     .filter(Boolean) as MediaItem[];
-
-  return transformed.filter(item => {
-    const hasLyrics = item.hasLyrics === true;
-    if (!hasLyrics) {
-      console.log(
-        `Filtering out "${item.title}" by ${item.artist} - no lyrics available`
-      );
-    }
-    return hasLyrics;
-  });
 }
 
-function transformMediaItem(item: BaseItemDto): MediaItem | null {
+function transformMediaItem(item: SingableItem): MediaItem | null {
   if (item.Type !== "Audio") {
     return null;
   }
@@ -69,6 +60,7 @@ function transformMediaItem(item: BaseItemDto): MediaItem | null {
     streamUrl: `/api/stream/${item.Id || ""}`,
     lyricsPath: `jellyfin_${item.Id}`,
     hasLyrics: item.HasLyrics === true,
+    ...(item.HasKaraokeGraphics ? { hasGraphics: true } : {}),
   };
 }
 

@@ -26,6 +26,8 @@ services:
       # - CDG_JELLYFIN_ROOT=/media/music
       # Queued songs are rendered to plugin video ahead of time (default: on)
       # - CDG_PRERENDER=false
+      # Songs phones can pick: karaoke (lyrics or CD+G, default) | lyrics | all
+      # - SONG_FILTER=karaoke
       # OPTIONAL logging: debug | info | warn | error, and text | json
       # - LOG_LEVEL=info
       # - LOG_FORMAT=text
