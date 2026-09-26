@@ -11,6 +11,7 @@ const { handleSendReaction } = require("./server/reactions");
 const { handlePlaybackFailed } = require("./server/playback-failure");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
 const { guardSocketHandlers } = require("./server/socket-guard");
+const { tagClientAddress } = require("./server/client-address");
 const {
   installProcessHandlers,
   installGracefulShutdown,
@@ -181,6 +182,7 @@ app.prepare().then(() => {
   const server = createServer(async (req, res) => {
     const startedAt = Date.now();
     res.on("finish", () => logRequest(req, res, startedAt));
+    tagClientAddress(req);
     try {
       // Handle debug endpoint before Next.js
       if (

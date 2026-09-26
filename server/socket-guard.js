@@ -2,7 +2,8 @@
  * Socket.IO safety net: every handler registered on a socket is wrapped so a
  * thrown error or rejected promise is logged and reported to that client
  * instead of crashing the server (which would lose the in-memory queue).
- * Payloads of the main events are checked before the handler runs.
+ * Payloads of the main events are checked before the handler runs, and each
+ * socket may send the user-driven events only so often.
  */
 
 const isObject = value =>
@@ -45,6 +46,33 @@ const VALIDATORS = {
       : "playback-failed needs a title and reason",
 };
 
+// Most of each event one socket may send per minute. Events not listed (the
+// TV's playback-control time updates, heartbeats, song-ended) aren't limited.
+const RATE_LIMITS = {
+  "join-session": 20,
+  "add-song": 30,
+  "remove-song": 60,
+  "skip-song": 30,
+  "send-reaction": 60,
+  "playback-failed": 30,
+};
+const RATE_WINDOW_MS = 60000;
+
+/** Returns allow(event): false once the socket is over that event's limit */
+function createRateLimiter(limits = RATE_LIMITS, now = Date.now) {
+  const sent = {};
+  return event => {
+    const limit = limits[event];
+    if (!limit) return true;
+    const at = now();
+    const recent = (sent[event] || []).filter(t => at - t < RATE_WINDOW_MS);
+    sent[event] = recent;
+    if (recent.length >= limit) return false;
+    recent.push(at);
+    return true;
+  };
+}
+
 /** Returns an error message for a bad payload, or null when it's acceptable */
 function validatePayload(event, payload) {
   const validate = VALIDATORS[event];
@@ -64,10 +92,28 @@ function reportFailure(socket, event, error, log) {
 }
 
 /** Wrap every handler later registered with socket.on */
-function guardSocketHandlers(socket, log = console) {
+function guardSocketHandlers(
+  socket,
+  log = console,
+  allow = createRateLimiter()
+) {
   const on = socket.on.bind(socket);
+  // Events already warned about, so a flood logs one line per event
+  const limited = new Set();
   socket.on = (event, handler) =>
     on(event, (...args) => {
+      if (!allow(event)) {
+        if (!limited.has(event)) {
+          limited.add(event);
+          log.warn(`[socket] rate-limited "${event}" from ${socket.id}`);
+        }
+        socket.emit("error", {
+          code: "RATE_LIMITED",
+          message: "Too many requests. Please wait a moment and try again.",
+        });
+        return;
+      }
+      limited.delete(event);
       const problem = validatePayload(event, args[0]);
       if (problem) {
         log.warn(`[socket] rejected "${event}" from ${socket.id}: ${problem}`);
@@ -86,4 +132,9 @@ function guardSocketHandlers(socket, log = console) {
   return socket;
 }
 
-module.exports = { guardSocketHandlers, validatePayload };
+module.exports = {
+  guardSocketHandlers,
+  validatePayload,
+  createRateLimiter,
+  RATE_LIMITS,
+};

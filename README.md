@@ -59,6 +59,7 @@ services:
       # - CDG_PRERENDER=false            # don't render videos for queued songs
       # - SONG_FILTER=karaoke           # karaoke (lyrics or CD+G) | lyrics | all
       # - LOG_LEVEL=info                 # debug | info | warn | error
+      # - TRUST_PROXY=true               # behind a reverse proxy (per-client limits)
     restart: unless-stopped
 ```
 
@@ -83,6 +84,7 @@ More settings, such as TV timings, are in [`.env.example`](.env.example); playli
 - `npm run check:jellyfin` (or `docker compose exec karaoke npm run check:jellyfin`) checks that Jellyfin is reachable, the API key works and the user exists.
 - `GET /api/health` reports the app, Jellyfin and plugin status. Add `?strict=1` to get a 503 when Jellyfin has problems.
 - Logs have timestamps and levels, mask API keys, and include errors from the TV and phones' browsers. `LOG_LEVEL=debug` shows every request; `LOG_FORMAT=json` suits log collectors.
+- Each phone can only send so many song adds, removals, skips and reactions a minute; extra ones get a "Too many requests" message and one warning is logged. Behind a reverse proxy, set `TRUST_PROXY=true` so browser error reports are limited per phone instead of per proxy.
 - Works with Jellyfin 12: the app uses the standard `Authorization: MediaBrowser Token` header.
 
 ## Troubleshooting

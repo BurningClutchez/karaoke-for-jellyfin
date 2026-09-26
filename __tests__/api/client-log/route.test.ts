@@ -7,7 +7,7 @@ const post = (body: string, ip = "1.2.3.4") =>
     new NextRequest("http://localhost/api/client-log", {
       method: "POST",
       body,
-      headers: { "x-forwarded-for": ip },
+      headers: { "x-karaoke-client-address": ip },
     })
   );
 
@@ -56,5 +56,23 @@ describe("POST /api/client-log", () => {
     expect(
       (await post(JSON.stringify({ message: "other" }), "5.6.7.8")).status
     ).toBe(204);
+  });
+});
+
+describe("POST /api/client-log client address", () => {
+  beforeEach(() => resetClientLogLimits());
+
+  it("ignores X-Forwarded-For, which any client can send", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const spoofed = (message: string, forwardedFor: string) =>
+      POST(
+        new NextRequest("http://localhost/api/client-log", {
+          method: "POST",
+          body: JSON.stringify({ message }),
+          headers: { "x-forwarded-for": forwardedFor },
+        })
+      );
+    for (let i = 0; i < 30; i++) await spoofed(`m${i}`, `10.0.0.${i}`);
+    expect((await spoofed("one more", "10.0.0.99")).status).toBe(429);
   });
 });
