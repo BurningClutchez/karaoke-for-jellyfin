@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import {
   guardSocketHandlers,
   validatePayload,
+  createRateLimiter,
+  RATE_LIMITS,
 } from "../../server/socket-guard";
 
 function fakeSocket() {
@@ -120,5 +122,58 @@ describe("guardSocketHandlers", () => {
       throw new Error("boom");
     });
     expect(() => handlers["skip-song"]()).not.toThrow();
+  });
+});
+
+describe("createRateLimiter", () => {
+  it("allows each limited event up to its limit per minute", () => {
+    let now = 0;
+    const allow = createRateLimiter({ "add-song": 2 }, () => now);
+    expect(allow("add-song")).toBe(true);
+    expect(allow("add-song")).toBe(true);
+    expect(allow("add-song")).toBe(false);
+    now = 60000;
+    expect(allow("add-song")).toBe(true);
+  });
+
+  it("never limits events without a limit", () => {
+    const allow = createRateLimiter({ "add-song": 1 });
+    for (let i = 0; i < 100; i++) expect(allow("playback-control")).toBe(true);
+  });
+
+  it("limits the user-driven events but not TV time updates", () => {
+    expect(RATE_LIMITS["add-song"]).toBeGreaterThan(0);
+    expect(RATE_LIMITS["send-reaction"]).toBeGreaterThan(0);
+    expect(RATE_LIMITS).not.toHaveProperty("playback-control");
+  });
+});
+
+describe("guardSocketHandlers rate limiting", () => {
+  it("rejects events over the limit and warns once per flood", () => {
+    const { socket, handlers } = fakeSocket();
+    const handler = vi.fn();
+    const logger = log();
+    let now = 0;
+    guardSocketHandlers(
+      socket,
+      logger,
+      createRateLimiter({ "skip-song": 1 }, () => now)
+    );
+    socket.on("skip-song", handler);
+    handlers["skip-song"]();
+    handlers["skip-song"]();
+    handlers["skip-song"]();
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(socket.emit).toHaveBeenCalledWith(
+      "error",
+      expect.objectContaining({ code: "RATE_LIMITED" })
+    );
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+
+    now = 60000;
+    handlers["skip-song"]();
+    expect(handler).toHaveBeenCalledTimes(2);
+    handlers["skip-song"]();
+    expect(logger.warn).toHaveBeenCalledTimes(2);
   });
 });
