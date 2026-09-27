@@ -76,6 +76,10 @@ services:
       # Optional
       # - CDG_MODE=auto
       # - PLAYBACK_STALL_ACTION=skip
+      # Karaoke Party channel in Jellyfin's Live TV (README "Karaoke Party channel").
+      # If Jellyfin reaches the app as localhost (they share networking), give the QR code the LAN address.
+      # - LIVE_CHANNEL=true
+      # - PUBLIC_URL=http://192.168.1.60:3000
       # - LOG_LEVEL=info
       # CD+G option A (not needed with the Jellyfin plugin): mount only the
       # karaoke folder, and give the same folder as Jellyfin sees it

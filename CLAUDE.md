@@ -22,6 +22,7 @@ A karaoke app that streams music from a Jellyfin media server. Two interfaces: a
 | Hooks                                    | `src/hooks/`                                                                |
 | Services (Jellyfin SDK, lyrics, search)  | `src/services/`                                                             |
 | Shared types                             | `src/types/index.ts`                                                        |
+| Live TV channel for Jellyfin (ffmpeg)    | `server/live/` — see README "Karaoke Party channel in Jellyfin"             |
 | CD+G graphics (decoder, lookup, plugin)  | `src/lib/cdg/`, `src/services/cdg/`, `jellyfin-plugin/` — see `docs/CDG.md` |
 | E2E features (Gherkin)                   | `e2e/features/`                                                             |
 | E2E step definitions                     | `e2e/steps/`                                                                |
@@ -95,6 +96,14 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 - On failure, the Playwright report, test results and Jellyfin's log are uploaded as the `test-results` artifact
 - Docker image (`.github/workflows/docker-publish.yml`): built on PRs and pushes to main; published only on main/tag pushes when the `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets are set, as `vars.DOCKER_IMAGE` (default `mrorbitman/karaoke-for-jellyfin`)
 - Concurrency group cancels stale runs on new pushes
+
+## Live channel (`server/live/`, `LIVE_CHANNEL=true`)
+
+- Plays the queue as a Jellyfin Live TV channel: `/api/live/channel.m3u` for Jellyfin's M3U tuner, `/api/live/stream.ts` (continuous MPEG-TS) or `stream.m3u8` (HLS). server.js answers `/api/live/*` before Next.js
+- One ffmpeg per item (song, "up next", paused or waiting card), in real time, all 1280x720 H.264 + AAC; the HLS muxer cuts segments and `-output_ts_offset` continues the timestamps from the previous item
+- Media comes from the app's own API (`/api/stream`, `/api/cdg`, `/api/lyrics`), so zips, the plugin and the local mount work as on the TV page. Lyrics are ASS subtitles with `\kf` word fills
+- While watched, the channel is the TV: it calls `completeCurrentSong()` / `startNextSong()` in server.js, and the socket `song-ended` / `start-next-song` events are ignored. It stops 30 s after the last viewer leaves
+- Unit tests fake ffmpeg; to see real output, run it with ffmpeg installed and read `/api/live/stream.ts` with `ffmpeg -i … -c copy out.ts`
 
 ## TV Display Transition Flow
 

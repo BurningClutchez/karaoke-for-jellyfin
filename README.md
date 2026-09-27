@@ -39,6 +39,7 @@ Full-screen karaoke experience with lyrics, performance feedback, and queue mana
 - Full-screen TV display with synced lyrics, song ratings and a next-up countdown
 - **CD+G karaoke graphics** for `.cdg` files next to your songs, or zipped with them ([setup](docs/CDG.md))
 - **Karaoke channel** in Jellyfin's own apps, via the optional [Jellyfin plugin](jellyfin-plugin/README.md)
+- **Karaoke Party live channel**: the party queue as a Live TV channel in every Jellyfin app, instead of a browser on the TV ([setup](#karaoke-party-channel-in-jellyfin))
 - Installable as a web app (PWA)
 
 ## Quick start (Docker)
@@ -61,6 +62,8 @@ services:
       # - LOG_LEVEL=info                 # debug | info | warn | error
       # - TRUST_PROXY=true               # behind a reverse proxy (per-client limits)
       # - PLAYBACK_STALL_ACTION=skip     # skip songs the TV gets stuck on (default: notify)
+      # - LIVE_CHANNEL=true              # the party as a Jellyfin Live TV channel (see below)
+      # - PUBLIC_URL=http://192.168.1.50:3967 # the address phones join on, for the channel's QR code
     restart: unless-stopped
 ```
 
@@ -116,6 +119,33 @@ Use `docker compose up -d`, not `restart`, which keeps the old settings. Recreat
 - Restarting the Tailscale container cuts off the other two. `depends_on … restart: true` restarts them too (Docker Compose 2.17+); otherwise run `docker compose restart jellyfin karaoke`.
 - All three share one IP, so ports must differ: the app uses 3000, Jellyfin 8096.
 - Leave `TRUST_PROXY` off: phones connect directly, not through a proxy.
+
+## Karaoke Party channel in Jellyfin
+
+With `LIVE_CHANNEL=true`, the app plays the party queue as a continuous video stream that Jellyfin shows as a Live TV channel called **Karaoke Party**. Watch it from any Jellyfin app (Android TV, Fire TV, Roku, web, phones) instead of opening `/tv` in a browser. Phones still add songs from the party page.
+
+What the channel shows:
+
+- **CD+G songs** with their graphics, from the local mount or the Jellyfin plugin, as on the TV page.
+- **Other songs** on a plain background with their lyrics, each line filling in word by word, or just the title when there are no lyrics.
+- **Between songs**, an "Up next" card with the song, the singer and the join QR code, for `LIVE_NEXT_UP_SECONDS` (8).
+- **With an empty queue**, a "Pick a song!" card with the QR code. **While paused**, a "Paused" card; playing again continues where it stopped.
+
+Setting it up:
+
+1. Set `LIVE_CHANNEL=true` on the app and recreate it (`docker compose up -d karaoke`). The Docker image includes ffmpeg.
+2. In Jellyfin, open **Dashboard → Live TV → Tuner Devices → Add**, choose **M3U Tuner**, and enter `http://<app address>/api/live/channel.m3u`, for example `http://192.168.1.60:3000/api/live/channel.m3u`. Save.
+3. **Karaoke Party** appears under **Live TV → Channels** in every Jellyfin app. If it doesn't show up straight away, run **Refresh Guide** in **Dashboard → Scheduled Tasks**.
+
+How it behaves:
+
+- **It runs while someone watches.** The channel starts encoding when Jellyfin tunes in and stops 30 seconds after the last viewer leaves. While nobody watches, the queue waits, as it does when no TV is open.
+- **The app keeps time.** Songs end when their audio ends, so the browser's autoplay rules don't matter.
+- **It's a few seconds behind.** Live TV lags roughly 5–15 seconds, so phones see "Now playing" change a little before the TV does. Skip and pause reach the TV after the same delay.
+- **Use either the channel or the `/tv` page for a party, not both.** While the channel is being watched, it ends songs itself and ignores the TV page's song-ended messages.
+- **The QR code** shows `PUBLIC_URL` if set, otherwise the address Jellyfin used to reach the channel. If Jellyfin reaches the app as `localhost` (as in the Tailscale example, where they share networking), set `PUBLIC_URL` to the LAN address, such as `http://192.168.1.60:3000`.
+- **CPU:** encoding takes roughly a third of one CPU core while someone watches.
+- `http://<app address>/api/live/status` shows whether the channel is running and what it's showing. `/api/live/channel.m3u?format=hls` gives an HLS version, for players that prefer it.
 
 ## CD+G graphics in short
 

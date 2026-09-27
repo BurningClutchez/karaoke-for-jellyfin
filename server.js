@@ -12,6 +12,7 @@ const { handlePlaybackFailed } = require("./server/playback-failure");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
 const { guardSocketHandlers } = require("./server/socket-guard");
 const { tagClientAddress } = require("./server/client-address");
+const { createLiveChannel } = require("./server/live");
 const {
   createPlaybackWatchdog,
   stallSettings,
@@ -185,10 +186,13 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
+  // Set once the live channel exists; HTTP requests can arrive before that
+  const liveRef = { current: null };
   const server = createServer(async (req, res) => {
     const startedAt = Date.now();
     res.on("finish", () => logRequest(req, res, startedAt));
     tagClientAddress(req);
+    if (liveRef.current?.handle(req, res)) return;
     try {
       // Handle debug endpoint before Next.js
       if (
@@ -384,6 +388,151 @@ app.prepare().then(() => {
       );
     }
   }
+
+  /** Mark the current song completed with a rating; the TV (or channel) starts the next */
+  function completeCurrentSong() {
+    console.log("Song ended");
+    if (!currentSession || !currentSession.currentSong) {
+      console.log("No current song to end");
+      return;
+    }
+
+    // Mark current song as completed and move to next
+    const completedSong = currentSession.currentSong;
+    completedSong.status = "completed";
+
+    // Remove completed song from queue immediately
+    currentSession.queue = currentSession.queue.filter(
+      item => item.status !== "completed" && item.status !== "skipped"
+    );
+
+    // Update positions for remaining songs
+    currentSession.queue = currentSession.queue.map((item, index) => ({
+      ...item,
+      position: index,
+    }));
+
+    // Generate rating for the completed song
+    const rating = generateRandomRating();
+    console.log(
+      `Generated rating for "${completedSong.mediaItem.title}": ${rating.grade} (${rating.score}/100)`
+    );
+
+    currentSession.currentSong = null;
+
+    // Reset playback state for the next song
+    if (currentSession.playbackState) {
+      currentSession.playbackState.currentTime = 0;
+      currentSession.playbackState.isPlaying = false;
+    } else {
+      currentSession.playbackState = {
+        isPlaying: false,
+        currentTime: 0,
+        volume: 80,
+        isMuted: false,
+        playbackRate: 1.0,
+        lyricsOffset: 0,
+      };
+    }
+
+    // Find next song but don't start it immediately - let the client handle transitions
+    const nextSong = currentSession.queue.find(
+      item => item.status === "pending"
+    );
+
+    // Broadcast song ended with rating data for transitions
+    const sessionId = currentSession.id || "main-session";
+    io.to(sessionId).emit("song-ended", {
+      song: completedSong,
+      rating: rating,
+      nextSong: nextSong || null,
+    });
+
+    if (nextSong) {
+      console.log("Next song ready:", nextSong.mediaItem.title);
+      io.to(sessionId).emit("queue-updated", currentSession.queue);
+    } else {
+      console.log("No more songs in queue");
+      // Broadcast updated playback state even if no next song
+      io.to(sessionId).emit(
+        "playback-state-changed",
+        currentSession.playbackState
+      );
+    }
+  }
+
+  /** Start the first pending song, after the between-song screens */
+  function startNextSong() {
+    console.log("Starting the next song after the between-song screens");
+    if (!currentSession) {
+      console.log("No current session");
+      return;
+    }
+
+    // Find next pending song
+    const nextSong = currentSession.queue.find(
+      item => item.status === "pending"
+    );
+
+    if (nextSong) {
+      console.log("Starting next song:", nextSong.mediaItem.title);
+      nextSong.status = "playing";
+      currentSession.currentSong = nextSong;
+
+      // Ensure playback state is ready for new song
+      if (!currentSession.playbackState) {
+        currentSession.playbackState = {
+          isPlaying: true,
+          currentTime: 0,
+          volume: 80,
+          isMuted: false,
+          playbackRate: 1.0,
+          lyricsOffset: 0,
+        };
+      } else {
+        currentSession.playbackState.isPlaying = true;
+        currentSession.playbackState.currentTime = 0;
+      }
+
+      const sessionId = currentSession.id || "main-session";
+      io.to(sessionId).emit("song-started", nextSong);
+      io.to(sessionId).emit("queue-updated", currentSession.queue);
+      io.to(sessionId).emit(
+        "playback-state-changed",
+        currentSession.playbackState
+      );
+    } else {
+      console.log("No next song available");
+    }
+  }
+
+  // The live channel for Jellyfin (server/live), when LIVE_CHANNEL=true
+  const live = createLiveChannel({
+    port,
+    getSession: () => currentSession,
+    actions: {
+      completeSong: completeCurrentSong,
+      startNextSong,
+      skipSong(reason) {
+        if (!currentSession?.currentSong) return;
+        io.to(currentSession.id || "main-session").emit("notice", {
+          level: "warn",
+          message: `${reason} and was skipped`,
+        });
+        skipCurrentSong();
+      },
+      progress(seconds) {
+        const state = currentSession?.playbackState;
+        if (!state) return;
+        state.currentTime = seconds;
+        io.to(currentSession.id || "main-session").emit(
+          "playback-state-changed",
+          state
+        );
+      },
+    },
+  });
+  liveRef.current = live;
 
   // Notice a TV that stopped playing (server/playback-watchdog.js)
   const stall = stallSettings();
@@ -1037,118 +1186,22 @@ app.prepare().then(() => {
     });
 
     socket.on("song-ended", () => {
-      console.log("Song ended naturally");
-      if (!currentSession || !currentSession.currentSong) {
-        console.log("No current song to end");
-        return;
-      }
-
-      // Mark current song as completed and move to next
-      const completedSong = currentSession.currentSong;
-      completedSong.status = "completed";
-
-      // Remove completed song from queue immediately
-      currentSession.queue = currentSession.queue.filter(
-        item => item.status !== "completed" && item.status !== "skipped"
-      );
-
-      // Update positions for remaining songs
-      currentSession.queue = currentSession.queue.map((item, index) => ({
-        ...item,
-        position: index,
-      }));
-
-      // Generate rating for the completed song
-      const rating = generateRandomRating();
-      console.log(
-        `Generated rating for "${completedSong.mediaItem.title}": ${rating.grade} (${rating.score}/100)`
-      );
-
-      currentSession.currentSong = null;
-
-      // Reset playback state for the next song
-      if (currentSession.playbackState) {
-        currentSession.playbackState.currentTime = 0;
-        currentSession.playbackState.isPlaying = false;
-      } else {
-        currentSession.playbackState = {
-          isPlaying: false,
-          currentTime: 0,
-          volume: 80,
-          isMuted: false,
-          playbackRate: 1.0,
-          lyricsOffset: 0,
-        };
-      }
-
-      // Find next song but don't start it immediately - let the client handle transitions
-      const nextSong = currentSession.queue.find(
-        item => item.status === "pending"
-      );
-
-      // Broadcast song ended with rating data for transitions
-      const sessionId = currentSession.id || "main-session";
-      io.to(sessionId).emit("song-ended", {
-        song: completedSong,
-        rating: rating,
-        nextSong: nextSong || null,
-      });
-
-      if (nextSong) {
-        console.log("Next song ready:", nextSong.mediaItem.title);
-        io.to(sessionId).emit("queue-updated", currentSession.queue);
-      } else {
-        console.log("No more songs in queue");
-        // Broadcast updated playback state even if no next song
-        io.to(sessionId).emit(
-          "playback-state-changed",
-          currentSession.playbackState
+      // With the live channel on screen, the channel ends songs itself
+      if (live?.channel.isWatched()) {
+        return console.debug(
+          "Ignoring song-ended: the live channel is playing"
         );
       }
+      completeCurrentSong();
     });
 
     socket.on("start-next-song", () => {
-      console.log("Client requesting to start next song after transitions");
-      if (!currentSession) {
-        console.log("No current session");
-        return;
-      }
-
-      // Find next pending song
-      const nextSong = currentSession.queue.find(
-        item => item.status === "pending"
-      );
-
-      if (nextSong) {
-        console.log("Starting next song:", nextSong.mediaItem.title);
-        nextSong.status = "playing";
-        currentSession.currentSong = nextSong;
-
-        // Ensure playback state is ready for new song
-        if (!currentSession.playbackState) {
-          currentSession.playbackState = {
-            isPlaying: true,
-            currentTime: 0,
-            volume: 80,
-            isMuted: false,
-            playbackRate: 1.0,
-            lyricsOffset: 0,
-          };
-        } else {
-          currentSession.playbackState.isPlaying = true;
-          currentSession.playbackState.currentTime = 0;
-        }
-
-        const sessionId = currentSession.id || "main-session";
-        io.to(sessionId).emit("song-started", nextSong);
-        io.to(sessionId).emit("queue-updated", currentSession.queue);
-        io.to(sessionId).emit(
-          "playback-state-changed",
-          currentSession.playbackState
+      if (live?.channel.isWatched()) {
+        return console.debug(
+          "Ignoring start-next-song: the live channel is playing"
         );
-      } else {
-        console.log("No next song available");
       }
+      startNextSong();
     });
 
     socket.on("user-heartbeat", () => {
@@ -1212,4 +1265,5 @@ app.prepare().then(() => {
     });
 
   installGracefulShutdown({ server, io });
+  process.on("exit", () => live?.stop());
 });
