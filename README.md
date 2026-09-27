@@ -138,6 +138,7 @@ Use `docker compose up -d`, not `restart`, which keeps the old settings. Recreat
 
 - **Lyrics too early or late:** use the lyrics offset in the admin page.
 - **Old version showing:** use the cache panel in the admin page, visit `/clear-cache`, or force-refresh the browser.
+- **TV shows "Press OK or tap the screen to turn on sound":** the TV's browser won't play sound until someone interacts with the page. Press OK on the remote (or any key, or tap) once after opening `/tv`. The log shows `[client:tv] The browser blocked sound` when this happens. Allowing autoplay for the site in the browser's settings avoids it.
 - **No album art on phones:** `JELLYFIN_SERVER_URL` must be reachable from the phones, not just from the app.
 
 ## Development

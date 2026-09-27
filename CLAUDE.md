@@ -59,6 +59,7 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 - `server.js` sets `x-karaoke-client-address` on every request (`server/client-address.js`; X-Forwarded-For only with `TRUST_PROXY=true`). API routes use it for per-client limits, never X-Forwarded-For.
 - `server/playback-watchdog.js` warns (or skips, `PLAYBACK_STALL_ACTION=skip`) when a song plays with a TV connected but no `time-update` progress for `PLAYBACK_STALL_SECONDS` (60). Playwright sets it to 0: headless TVs can't autoplay.
 - Call Jellyfin with `jellyfinFetch` and `mediaBrowserToken` from `src/lib/jellyfinFetch.ts` (timeout, one retry for reads, standard auth header). Never use `X-Emby-Token` or `api_key`: Jellyfin 12 rejects them by default.
+- TV audio goes through `playMedia` (`src/lib/audioUnlock.ts`): a play() refused by the autoplay policy shows `EnableSoundPrompt` until a key press or tap. Headless e2e browsers don't enforce the policy, so tests never see it.
 - Browser errors go to the server log through `reportClientError` (`src/lib/clientLog.ts`) and `/api/client-log`; error boundaries are `src/app/error.tsx`, `global-error.tsx` and `tv/error.tsx` (self-recovering).
 
 ## Testing
