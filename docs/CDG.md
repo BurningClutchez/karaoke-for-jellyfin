@@ -27,27 +27,10 @@ The Karaoke CDG plugin also adds a **Karaoke** channel to Jellyfin's apps, inclu
 
 With the Karaoke CDG plugin installed, zips holding one `.cdg` and one audio file work too. The plugin adds a silent placeholder song for each zip, so they're searchable. When one is queued, Karaoke for Jellyfin asks the plugin to extract it, and the TV plays the real audio and graphics. Option A (the local mount) doesn't apply to zipped songs; they always go through the plugin. See [`jellyfin-plugin/README.md`](../jellyfin-plugin/README.md#zipped-karaoke-songs).
 
-## Option A: mount the music library
+## Setting it up
 
-This needs no Jellyfin changes. The karaoke app must be able to reach the same files Jellyfin uses.
-
-```yaml
-services:
-  karaoke-app:
-    environment:
-      # The folder inside this container
-      - CDG_LOCAL_ROOT=/music
-      # The same folder as Jellyfin reports it (omit if identical)
-      - CDG_JELLYFIN_ROOT=/media/music
-    volumes:
-      - /path/to/music:/music:ro
-```
-
-The app asks Jellyfin for the song's path, for example `/media/music/Artist/Song.mp3`, and replaces `CDG_JELLYFIN_ROOT` with `CDG_LOCAL_ROOT`. Then it reads `/music/Artist/Song.cdg`, or the same name with `.CDG`. Paths outside the root are never read. Windows paths from Jellyfin, like `D:\Karaoke\...`, also work: set `CDG_JELLYFIN_ROOT=D:\Karaoke`.
-
-## Options B and C: the Karaoke CDG Jellyfin plugin
-
-Use the plugin when the karaoke app can't mount the library, for example when Jellyfin runs on a NAS. See [`jellyfin-plugin/README.md`](../jellyfin-plugin/README.md) for how to build and install it. It needs no settings in this app, because the app calls it with the existing `JELLYFIN_API_KEY`.
+- **Option A (no plugin):** mount the karaoke folder read-only into the app and set `CDG_LOCAL_ROOT` and `CDG_JELLYFIN_ROOT`. See [HOWTO.md, section 4.2](../HOWTO.md#42-cdg-without-the-plugin).
+- **Options B and C (the plugin):** install the Karaoke CDG plugin; the app needs no settings, because it calls the plugin with its `JELLYFIN_API_KEY`. Use the plugin when the app can't mount the library, for example when Jellyfin runs on a NAS. See [HOWTO.md, section 5](../HOWTO.md#5-option-b-the-app-and-the-karaoke-cdg-plugin).
 
 ## Display modes
 

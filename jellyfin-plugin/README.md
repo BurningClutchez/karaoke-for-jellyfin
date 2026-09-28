@@ -8,6 +8,8 @@ A Jellyfin plugin for `.cdg` karaoke songs: an audio file with a `.cdg` file of 
 
 ## Install
 
+Step by step, with screenshots and the recommended settings: [HOWTO.md, section 5](../HOWTO.md#5-option-b-the-app-and-the-karaoke-cdg-plugin). In short:
+
 1. Build the DLL (see [Build](#build)), or download it from the "Jellyfin plugin" GitHub workflow.
 2. Create a folder named `KaraokeCdg_1.0.1.0` in Jellyfin's plugin directory (Docker: `/config/plugins/`, Linux: `/var/lib/jellyfin/plugins/`, Windows: `%ProgramData%\Jellyfin\Server\plugins\`) and copy `Jellyfin.Plugin.KaraokeCdg.dll` into it.
 3. Restart Jellyfin. **Karaoke CDG** appears under **Dashboard → Plugins**, and **Karaoke** under Channels.

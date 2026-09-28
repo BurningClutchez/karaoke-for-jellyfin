@@ -1,6 +1,6 @@
 /**
  * Sets up the live channel when LIVE_CHANNEL=true: a Jellyfin Live TV channel
- * that plays the party queue (see the README section "Karaoke Party channel").
+ * that plays the party queue (see HOWTO.md, section 6).
  *
  *   LIVE_CHANNEL           true to turn it on
  *   LIVE_NEXT_UP_SECONDS   how long the "up next" card shows (default 8)

@@ -7,11 +7,11 @@ A web-based karaoke system that integrates with Jellyfin media server to provide
 
 **Version 0.2.0** (Karaoke CDG plugin 1.0.1.0). New in this version:
 
-- **Karaoke Party channel**: the party queue as a Live TV channel in every Jellyfin app ([setup](#karaoke-party-channel-in-jellyfin))
+- **Karaoke Party channel**: the party queue as a Live TV channel in every Jellyfin app ([setup](HOWTO.md#6-the-karaoke-party-channel-optional-either-option))
 - **"Turn on sound" prompt** on the TV when its browser blocks autoplay, and the TV's audio, lyrics and connection errors in the server log
 - **Stuck-TV warning**: a song with no progress on the TV for 60 seconds is reported to the phones, or skipped with `PLAYBACK_STALL_ACTION=skip`
 - **Per-phone limits** on song adds, removals, skips and reactions; `TRUST_PROXY` for reverse proxies
-- **Setup guides**: [only karaoke songs on phones](#only-karaoke-songs-on-phones) and [Jellyfin, Tailscale and the app on one IP](#jellyfin-tailscale-and-the-app-on-one-ip)
+- **[HOWTO.md](HOWTO.md)**: one setup guide with screenshots, including [only karaoke songs on phones](HOWTO.md#32-create-a-karaoke-only-user) and [Jellyfin, Tailscale and the app on one IP](HOWTO.md#7-example-jellyfin-tailscale-and-the-app-on-one-ip)
 - **Plugin 1.0.1.0**: a zip that can't be read keeps its placeholder, and placeholders lost to that come back
 
 The system has three main interfaces:
@@ -44,14 +44,23 @@ Full-screen karaoke experience with lyrics, performance feedback, and queue mana
 
 ## Features
 
-- Search by artist, playlist or title, and queue songs from any phone
-- Full-screen TV display with synced lyrics, song ratings and a next-up countdown
-- **CD+G karaoke graphics** for `.cdg` files next to your songs, or zipped with them ([setup](docs/CDG.md))
-- **Karaoke channel** in Jellyfin's own apps, via the optional [Jellyfin plugin](jellyfin-plugin/README.md)
-- **Karaoke Party live channel**: the party queue as a Live TV channel in every Jellyfin app, instead of a browser on the TV ([setup](#karaoke-party-channel-in-jellyfin))
-- Installable as a web app (PWA)
+- Search by artist, playlist or title, and queue songs from any phone; songs rotate fairly between singers
+- Full-screen TV display with synced lyrics, song ratings, reactions and a next-up countdown
+- **CD+G karaoke graphics** for `.cdg` files next to your songs, or zipped with them ([how it works](docs/CDG.md))
+- **Karaoke channel** in Jellyfin's own apps, via the optional [Karaoke CDG plugin](jellyfin-plugin/README.md)
+- **Karaoke Party channel**: the whole party as a Live TV channel in every Jellyfin app, instead of a browser on the TV
+- Installable as a web app (PWA), and as an [Android TV app](docs/ANDROID_TV_BUILD.md)
 
-## Quick start (Docker)
+## Setup
+
+**[HOWTO.md](HOWTO.md) is the setup guide**, with screenshots: preparing your songs, the Jellyfin library, user and API key, then either
+
+- **Option A, the app only** (lyrics songs, and CD+G songs from a mounted folder), or
+- **Option B, the app and the Karaoke CDG plugin** (adds zipped songs, the Karaoke channel in Jellyfin's apps and rendered videos),
+
+plus the Karaoke Party channel, an example with Tailscale and macvlan, every setting, updating, and troubleshooting.
+
+The shortest start, for songs with lyrics:
 
 ```yaml
 services:
@@ -60,125 +69,13 @@ services:
     ports:
       - 3967:3000
     environment:
-      - JELLYFIN_SERVER_URL=http://192.168.1.50:8096 # must also work from phones (album art)
-      - JELLYFIN_API_KEY=your-api-key # Dashboard → API Keys
-      - JELLYFIN_USERNAME=your-user
-      # Optional
-      # - JELLYFIN_MUSIC_LIBRARY=Music   # list artists from this library only
-      # - CDG_MODE=auto                  # auto | canvas | video | off (docs/CDG.md)
-      # - CDG_PRERENDER=false            # don't render videos for queued songs
-      # - SONG_FILTER=karaoke           # karaoke (lyrics or CD+G) | lyrics | all
-      # - LOG_LEVEL=info                 # debug | info | warn | error
-      # - TRUST_PROXY=true               # behind a reverse proxy (per-client limits)
-      # - PLAYBACK_STALL_ACTION=skip     # skip songs the TV gets stuck on (default: notify)
-      # - LIVE_CHANNEL=true              # the party as a Jellyfin Live TV channel (see below)
-      # - PUBLIC_URL=http://192.168.1.50:3967 # the address phones join on, for the channel's QR code
+      - JELLYFIN_SERVER_URL=http://192.168.1.50:8096 # must also work from phones
+      - JELLYFIN_API_KEY=your-api-key # Jellyfin: Dashboard → API Keys
+      - JELLYFIN_USERNAME=karaoke # a user that can only see your karaoke library
     restart: unless-stopped
 ```
 
-Then open:
-
-- `http://<host>:3967/tv` on the TV
-- `http://<host>:3967/` on phones (or scan the QR code on the TV)
-- `http://<host>:3967/admin` for the host
-
-More settings, such as TV timings, are in [`.env.example`](.env.example); playlist filtering is in [`.env.local.example`](.env.local.example). For CD+G graphics, add the [Jellyfin plugin](jellyfin-plugin/README.md) or mount your music folder (see [docs/CDG.md](docs/CDG.md)).
-
-## Only karaoke songs on phones
-
-Keep karaoke files apart from your regular music, and give the app a Jellyfin user that can only see them.
-
-1. **Separate folder and library.** Put karaoke files in their own folder, mount it into Jellyfin (for example at `/media/karaoke`), and add it as its own library of type Music, such as "Karaoke Tracks". Regular music stays in "Music".
-2. **A karaoke-only Jellyfin user.** In **Dashboard → Users**, add a user such as `karaoke`. Under **Library access**, untick "Enable access to all libraries" and tick only **Karaoke Tracks**, plus the plugin's **Karaoke** library if you have zipped songs (their placeholders live there). Set `JELLYFIN_USERNAME=karaoke`. Every query the app makes is limited to what this user can see, so regular music doesn't show up in browsing, title search or song lists.
-3. **Plugin zip folders.** In **Dashboard → Plugins → Karaoke CDG**, set **Zip folders** to `/media/karaoke`. The default searches every music library.
-4. **App mount, only for CD+G option A.** With the plugin, the app needs no music mount. Otherwise mount just the karaoke folder, for example `/path/to/karaoke:/karaoke:ro` with `CDG_LOCAL_ROOT=/karaoke` and `CDG_JELLYFIN_ROOT=/media/karaoke`. The app never reads outside `CDG_JELLYFIN_ROOT`. If your karaoke files are a subfolder of the music library, use that subfolder, such as `CDG_JELLYFIN_ROOT=/media/music/Karaoke`.
-5. **Keep `SONG_FILTER=karaoke`** (the default) so phones only list songs with lyrics or CD+G graphics. On its own it isn't enough: regular songs with lyrics would still show, which is why step 2 matters.
-
-`JELLYFIN_MUSIC_LIBRARY` isn't a substitute for step 2: it only narrows the artist list, not title search or song lists, and it takes one library, so it can't include both your karaoke library and the plugin's Karaoke library.
-
-**What needs a restart**
-
-| Change                                          | What to do                                                       |
-| ----------------------------------------------- | ---------------------------------------------------------------- |
-| New mount on Jellyfin                           | `docker compose up -d jellyfin`, then add the library and scan   |
-| `JELLYFIN_USERNAME`, `CDG_*` or the app's mount | `docker compose up -d karaoke`                                   |
-| A new library while the app runs                | `docker compose up -d karaoke` (it picks its library at startup) |
-| The user's library access                       | Nothing: applies to the next search                              |
-| The plugin's zip folders                        | Nothing: run a library scan to make placeholders now             |
-| Which songs are badged Karaoke                  | Nothing: updates within about 15 minutes                         |
-
-Use `docker compose up -d`, not `restart`, which keeps the old settings. Recreating the app empties the queue, so do it before the party; phones reconnect by themselves. Do the steps in the order above, then search on a phone for a title that's only in your regular music: it shouldn't appear.
-
-## Jellyfin, Tailscale and the app on one IP
-
-[`docs/docker-compose.tailscale-macvlan.yml`](docs/docker-compose.tailscale-macvlan.yml) runs Jellyfin and the app behind a Tailscale container that has its own LAN IP (macvlan). Both share its networking, so they answer on one LAN IP and one tailnet IP. Karaoke files are already separated as in the section above.
-
-1. Replace `192.168.1.60`, the subnet, the gateway and `eth0` with your own; pick an IP outside your router's DHCP range.
-2. Put `TS_AUTHKEY`, `JELLYFIN_API_KEY` and `JELLYFIN_USERNAME` in a `.env` file next to it. Create the API key once Jellyfin is up, then run `docker compose up -d karaoke` again.
-3. In the Tailscale admin console, approve the `192.168.1.60/32` route. Tailnet devices can then use the LAN addresses too, which album art needs (it loads straight from `JELLYFIN_SERVER_URL`). Phones use approved routes automatically; Linux needs `--accept-routes`.
-4. Open the TV at `http://192.168.1.60:3000/tv`. The QR code shows the address the TV page was opened on, so opening it at the LAN IP gives guests a code that works on Wi-Fi and, with the route, over Tailscale.
-
-| Where                     | Phones                     | TV                            | Jellyfin                   |
-| ------------------------- | -------------------------- | ----------------------------- | -------------------------- |
-| Home Wi-Fi                | `http://192.168.1.60:3000` | `http://192.168.1.60:3000/tv` | `http://192.168.1.60:8096` |
-| Tailscale, route approved | the same                   | the same                      | the same                   |
-| Tailscale, no route       | `http://karaoke:3000`      | `http://karaoke:3000/tv`      | `http://karaoke:8096`      |
-
-- The Docker host can't reach its own macvlan IP; other LAN devices can. Add a macvlan shim on the host, or use the tailnet name, to reach it from the host.
-- Restarting the Tailscale container cuts off the other two. `depends_on … restart: true` restarts them too (Docker Compose 2.17+); otherwise run `docker compose restart jellyfin karaoke`.
-- All three share one IP, so ports must differ: the app uses 3000, Jellyfin 8096.
-- Leave `TRUST_PROXY` off: phones connect directly, not through a proxy.
-
-## Karaoke Party channel in Jellyfin
-
-With `LIVE_CHANNEL=true`, the app plays the party queue as a continuous video stream that Jellyfin shows as a Live TV channel called **Karaoke Party**. Watch it from any Jellyfin app (Android TV, Fire TV, Roku, web, phones) instead of opening `/tv` in a browser. Phones still add songs from the party page.
-
-What the channel shows:
-
-- **CD+G songs** with their graphics, from the local mount or the Jellyfin plugin, as on the TV page.
-- **Other songs** on a plain background with their lyrics, each line filling in word by word, or just the title when there are no lyrics.
-- **Between songs**, an "Up next" card with the song, the singer and the join QR code, for `LIVE_NEXT_UP_SECONDS` (8).
-- **With an empty queue**, a "Pick a song!" card with the QR code. **While paused**, a "Paused" card; playing again continues where it stopped.
-
-Setting it up:
-
-1. Set `LIVE_CHANNEL=true` on the app and recreate it (`docker compose up -d karaoke`). The Docker image includes ffmpeg.
-2. In Jellyfin, open **Dashboard → Live TV → Tuner Devices → Add**, choose **M3U Tuner**, and enter `http://<app address>/api/live/channel.m3u`, for example `http://192.168.1.60:3000/api/live/channel.m3u`. Save.
-3. **Karaoke Party** appears under **Live TV → Channels** in every Jellyfin app. If it doesn't show up straight away, run **Refresh Guide** in **Dashboard → Scheduled Tasks**.
-
-How it behaves:
-
-- **It runs while someone watches.** The channel starts encoding when Jellyfin tunes in and stops 30 seconds after the last viewer leaves. While nobody watches, the queue waits, as it does when no TV is open.
-- **The app keeps time.** Songs end when their audio ends, so the browser's autoplay rules don't matter.
-- **It's a few seconds behind.** Live TV lags roughly 5–15 seconds, so phones see "Now playing" change a little before the TV does. Skip and pause reach the TV after the same delay.
-- **Use either the channel or the `/tv` page for a party, not both.** While the channel is being watched, it ends songs itself and ignores the TV page's song-ended messages.
-- **The QR code** shows `PUBLIC_URL` if set, otherwise the address Jellyfin used to reach the channel. If Jellyfin reaches the app as `localhost` (as in the Tailscale example, where they share networking), set `PUBLIC_URL` to the LAN address, such as `http://192.168.1.60:3000`.
-- **CPU:** encoding takes roughly a third of one CPU core while someone watches.
-- `http://<app address>/api/live/status` shows whether the channel is running and what it's showing. `/api/live/channel.m3u?format=hls` gives an HLS version, for players that prefer it.
-
-## CD+G graphics in short
-
-- The TV draws `.cdg` graphics itself when it can, and falls back to a video rendered by the Jellyfin plugin, then to lyrics.
-- Phones list songs that have lyrics or CD+G graphics, both badged **Karaoke**. Set `SONG_FILTER=lyrics` to list only songs with lyrics, or `SONG_FILTER=all` to list every song.
-- Queued songs are rendered ahead by default, so the video is ready by the time the song comes up. Set `CDG_PRERENDER=false` to turn this off.
-- To render the **whole library** ahead of time, open **Dashboard → Plugins → Karaoke CDG** in Jellyfin and click **Render karaoke videos**. It first calculates how long this will take and how much space it needs, and asks you to confirm.
-- Rendered videos are cached like extracted zips. A video that isn't played for 30 days is deleted, except the 100 most recently played, and is rendered again when next needed. Both limits can be changed on the plugin's settings page.
-
-## Checking the setup
-
-- `npm run check:jellyfin` (or `docker compose exec karaoke npm run check:jellyfin`) checks that Jellyfin is reachable, the API key works and the user exists.
-- `GET /api/health` reports the app, Jellyfin and plugin status. Add `?strict=1` to get a 503 when Jellyfin has problems.
-- Logs have timestamps and levels, mask API keys, and include errors from the TV and phones' browsers. `LOG_LEVEL=debug` shows every request; `LOG_FORMAT=json` suits log collectors.
-- If a song is playing but the TV reports no progress for 60 seconds (stuck buffering, a hung or sleeping TV, blocked autoplay), the log gets a warning and phones see "The TV seems stuck". `PLAYBACK_STALL_SECONDS` changes the wait (0 turns it off); `PLAYBACK_STALL_ACTION=skip` also skips the song.
-- Each phone can only send so many song adds, removals, skips and reactions a minute; extra ones get a "Too many requests" message and one warning is logged. Behind a reverse proxy, set `TRUST_PROXY=true` so browser error reports are limited per phone instead of per proxy.
-- Works with Jellyfin 12: the app uses the standard `Authorization: MediaBrowser Token` header.
-
-## Troubleshooting
-
-- **Lyrics too early or late:** use the lyrics offset in the admin page.
-- **Old version showing:** use the cache panel in the admin page, visit `/clear-cache`, or force-refresh the browser.
-- **TV shows "Press OK or tap the screen to turn on sound":** the TV's browser won't play sound until someone interacts with the page. Press OK on the remote (or any key, or tap) once after opening `/tv`. The log shows `[client:tv] The browser blocked sound` when this happens. Allowing autoplay for the site in the browser's settings avoids it.
-- **No album art on phones:** `JELLYFIN_SERVER_URL` must be reachable from the phones, not just from the app.
+Then open `http://<host>:3967/tv` on the TV, scan its QR code with your phone, and use `http://<host>:3967/admin` to host.
 
 ## Development
 

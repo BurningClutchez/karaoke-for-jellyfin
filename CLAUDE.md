@@ -22,7 +22,7 @@ A karaoke app that streams music from a Jellyfin media server. Two interfaces: a
 | Hooks                                    | `src/hooks/`                                                                |
 | Services (Jellyfin SDK, lyrics, search)  | `src/services/`                                                             |
 | Shared types                             | `src/types/index.ts`                                                        |
-| Live TV channel for Jellyfin (ffmpeg)    | `server/live/` — see README "Karaoke Party channel in Jellyfin"             |
+| Live TV channel for Jellyfin (ffmpeg)    | `server/live/` — see HOWTO.md section 6                                     |
 | CD+G graphics (decoder, lookup, plugin)  | `src/lib/cdg/`, `src/services/cdg/`, `jellyfin-plugin/` — see `docs/CDG.md` |
 | E2E features (Gherkin)                   | `e2e/features/`                                                             |
 | E2E step definitions                     | `e2e/steps/`                                                                |
@@ -52,6 +52,11 @@ npm run lint:check   # ESLint
 npm run format:check # Prettier
 npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 ```
+
+## Docs
+
+- `HOWTO.md` is the one setup guide (options A and B, Jellyfin user/API key, plugin, Karaoke Party channel, Tailscale example, settings reference, troubleshooting); screenshots in `docs/howto/`. README.md stays an overview that links to it; DOCKER.md covers the image; `docs/CDG.md` and `jellyfin-plugin/README.md` are references. Put setup steps in HOWTO.md only
+- A new setting goes in HOWTO.md section 10 and `.env.example`
 
 ## Error handling and logging
 
