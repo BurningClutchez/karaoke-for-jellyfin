@@ -5,6 +5,15 @@
 
 A web-based karaoke system that integrates with Jellyfin media server to provide karaoke functionality.
 
+**Version 0.2.0** (Karaoke CDG plugin 1.0.1.0). New in this version:
+
+- **Karaoke Party channel**: the party queue as a Live TV channel in every Jellyfin app ([setup](#karaoke-party-channel-in-jellyfin))
+- **"Turn on sound" prompt** on the TV when its browser blocks autoplay, and the TV's audio, lyrics and connection errors in the server log
+- **Stuck-TV warning**: a song with no progress on the TV for 60 seconds is reported to the phones, or skipped with `PLAYBACK_STALL_ACTION=skip`
+- **Per-phone limits** on song adds, removals, skips and reactions; `TRUST_PROXY` for reverse proxies
+- **Setup guides**: [only karaoke songs on phones](#only-karaoke-songs-on-phones) and [Jellyfin, Tailscale and the app on one IP](#jellyfin-tailscale-and-the-app-on-one-ip)
+- **Plugin 1.0.1.0**: a zip that can't be read keeps its placeholder, and placeholders lost to that come back
+
 The system has three main interfaces:
 
 1. **Mobile Interface** (`<hostname>/`): Search and queue songs from your phone
