@@ -68,7 +68,7 @@ When a zipped song is queued in Karaoke for Jellyfin, or played in the channel, 
 
 - **Which zips count:** exactly one `.cdg` file and one audio file (MP3, M4A, AAC, OGG, Opus, FLAC, WAV or WMA). `__MACOSX` clutter is ignored, files are extracted under fixed names, and entries over 500 MB are refused.
 - **When placeholders are made:** after every library scan, by the hourly **Create karaoke placeholders** task, and within about 30 seconds if **Watch zip folders** is on. Only new or changed zips are read; the first pass takes about 1–1.5 s per zip.
-- **Keeping in step:** deleted zips lose their placeholder and changed zips get a new one. If a whole zip folder is missing, as with a disconnected NAS, nothing is removed.
+- **Keeping in step:** deleted zips lose their placeholder and changed zips get a new one. If a whole zip folder is missing, as with a disconnected NAS, nothing is removed. A zip that can't be read (a network share dropping out, a zip still being copied, permissions) keeps its placeholder, and the log says `Could not read … trying again on the next pass`; only a zip that was read and isn't a karaoke zip loses it.
 - **Where placeholders go:** by default into their own folder, with its own Karaoke library, because a placeholder played in Jellyfin's music player is silent.
 
 ## Endpoints

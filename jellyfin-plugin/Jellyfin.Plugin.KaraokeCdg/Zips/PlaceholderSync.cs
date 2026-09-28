@@ -165,12 +165,14 @@ public sealed class PlaceholderSync
         var existing = _index.FindByZip(zipPath);
         var placeholder = ZipNaming.PlaceholderPath(zipPath, root, PlaceholderRoot);
 
-        // Unchanged zip whose placeholder is in place (or that isn't a karaoke zip): nothing to do.
-        // A placeholder elsewhere (the placeholder location setting changed) is moved.
+        // Unchanged zip whose placeholder is in place (or that was read and isn't a karaoke
+        // zip): nothing to do. A placeholder elsewhere (the placeholder location setting
+        // changed) is moved.
         if (existing is not null
             && existing.Matches(file.Length, file.LastWriteTimeUtc.Ticks)
             && (existing.PlaceholderPath is null
-                || (existing.PlaceholderPath == placeholder && File.Exists(placeholder))))
+                ? existing.Inspected
+                : existing.PlaceholderPath == placeholder && File.Exists(placeholder)))
         {
             return false;
         }
@@ -181,16 +183,26 @@ public sealed class PlaceholderSync
             ZipRoot = root,
             ZipSize = file.Length,
             ZipModifiedTicks = file.LastWriteTimeUtc.Ticks,
+            Inspected = true,
         };
 
-        KaraokeZipContents? contents = null;
+        KaraokeZipContents? contents;
         try
         {
             contents = KaraokeZip.Inspect(zipPath);
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "Could not read {Zip}", zipPath);
+            // A read error (a network share dropping out, a zip still being copied, permissions)
+            // says nothing about the zip: keep its placeholder and record, and try again next pass
+            _logger.LogWarning(ex, "Could not read {Zip}; keeping its placeholder and trying again on the next pass", zipPath);
+            return false;
+        }
+        catch (InvalidDataException ex)
+        {
+            // Read, but not a valid zip: not a karaoke zip
+            _logger.LogWarning(ex, "{Zip} isn't a valid zip file", zipPath);
+            contents = null;
         }
 
         if (contents is null || IsForeignFile(placeholder, zipPath))

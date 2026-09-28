@@ -20,6 +20,13 @@ public sealed class ZipRecord
     /// <summary>Gets or sets the placeholder MP3, or null if the zip isn't a karaoke zip.</summary>
     public string? PlaceholderPath { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the zip's contents were read. Records from
+    /// before this was stored are false; one without a placeholder may then come from a
+    /// read error, so the zip is looked at again.
+    /// </summary>
+    public bool Inspected { get; set; }
+
     /// <summary>Gets or sets the audio entry name.</summary>
     public string? AudioEntry { get; set; }
 
