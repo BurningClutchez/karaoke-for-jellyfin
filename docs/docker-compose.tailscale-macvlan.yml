@@ -45,7 +45,7 @@ services:
     environment:
       - JELLYFIN_PublishedServerUrl=http://192.168.1.60:8096
     volumes:
-      - ./jellyfin/config:/config # plugin: ./jellyfin/config/plugins/KaraokeCdg_1.0.0.0/
+      - ./jellyfin/config:/config # plugin: ./jellyfin/config/plugins/KaraokeCdg_1.0.1.0/
       - ./jellyfin/cache:/cache
       # Regular music and karaoke in separate folders and libraries
       - /path/to/music:/media/music:ro # library "Music"
