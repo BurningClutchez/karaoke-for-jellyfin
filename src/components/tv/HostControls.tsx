@@ -25,6 +25,7 @@ import {
 
 interface HostControlsProps {
   session: KaraokeSession | null;
+  queue: QueueItem[];
   currentSong: QueueItem | null;
   playbackState: PlaybackState | null;
   onClose: () => void;
@@ -37,6 +38,7 @@ interface HostControlsProps {
 
 export function HostControls({
   session,
+  queue,
   currentSong,
   playbackState,
   onClose,
@@ -48,8 +50,7 @@ export function HostControls({
 }: HostControlsProps) {
   const [activeTab, setActiveTab] = useState<HostTab>("playback");
 
-  const pendingQueue =
-    session?.queue.filter(item => item.status === "pending") || [];
+  const pendingQueue = queue.filter(item => item.status === "pending");
 
   const handlePlayPause = () => {
     if (playbackState) {

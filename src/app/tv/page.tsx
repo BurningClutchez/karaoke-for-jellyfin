@@ -100,6 +100,7 @@ export default function TVDisplay() {
       {showHostControls && (
         <HostControls
           session={session}
+          queue={queue}
           currentSong={currentSong}
           playbackState={playbackState}
           onClose={() => setShowHostControls(false)}

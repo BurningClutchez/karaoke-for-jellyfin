@@ -26,3 +26,10 @@ Feature: Admin Playback Sync
     When Alice adds songs by 3 different artists
     And the admin moves the last waiting song up
     Then the last two waiting songs should have swapped places
+
+  Scenario: Host drags a waiting song to the top on the TV
+    Given "Alice" has joined the karaoke session
+    And the TV display is connected
+    When Alice adds songs by 3 different artists
+    And the host drags the last waiting song to the top on the TV
+    Then the last waiting song should now be first

@@ -58,6 +58,7 @@ export function HostTabNavigation({
         return (
           <button
             key={tab.id}
+            data-testid={`host-tab-${tab.id}`}
             onClick={() => onTabChange(tab.id)}
             className={`flex items-center px-4 py-2 rounded-md transition-colors ${
               isActive

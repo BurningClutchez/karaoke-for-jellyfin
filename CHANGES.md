@@ -36,6 +36,7 @@ Works with plugin 1.0.1.0 (1.0.0.0 works too). All new settings are optional.
 **Bug fixes**
 
 - **Reordering the queue works.** Dragging songs in the TV's host controls did nothing: the server ignored `reorder-queue`. It now moves the song among the waiting songs and updates everyone. The admin page's Queue tab gains move up and move down buttons.
+- **The TV's host controls showed an out-of-date queue.** Their Queue tab (and the queue counts) used the queue from when the TV connected, so songs added later were missing. They now follow the live queue.
 - **Songs sat at 0:00 and were skipped when the TV's browser blocked sound.** The refusal was only visible in the TV browser's console; the TV now shows the prompt and the log says so.
 - **Browser error reports were rate-limited by `X-Forwarded-For`,** which any client can fake and which is missing without a proxy (so all devices shared one limit). They are now limited per connection address, set by the server.
 - **The audio retry after an error ignored blocked sound;** it now waits for the prompt too.

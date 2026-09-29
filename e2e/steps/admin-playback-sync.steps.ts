@@ -216,3 +216,26 @@ Then(
     ).toHaveText(expected, { timeout: 15000 });
   }
 );
+
+When(
+  "the host drags the last waiting song to the top on the TV",
+  async ({ tvPage }) => {
+    await tvPage.keyboard.press("h");
+    await expect(tvPage.locator("[data-testid='host-controls']")).toBeVisible();
+    await tvPage.locator("[data-testid='host-tab-queue']").click();
+    const items = tvPage.locator("[data-testid='host-queue-item']");
+    await expect(items).toHaveCount(waitingBefore.length, { timeout: 15000 });
+    await items.last().dragTo(items.first());
+  }
+);
+
+Then("the last waiting song should now be first", async ({ tvPage }) => {
+  const expected = [waitingBefore.at(-1)!, ...waitingBefore.slice(0, -1)];
+  await expect
+    .poll(() => waitingTitles(tvPage), { timeout: 15000 })
+    .toEqual(expected);
+  await expect(tvPage.locator("[data-testid='host-queue-title']")).toHaveText(
+    expected,
+    { timeout: 15000 }
+  );
+});
