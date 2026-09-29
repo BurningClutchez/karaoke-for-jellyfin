@@ -7,13 +7,13 @@ A karaoke app that streams music from a Jellyfin media server. Two interfaces: a
 - **Next.js 16** (App Router, Turbopack) + **custom Node server** (`server.js`) for WebSocket support via Socket.IO
 - `npm run dev` / `npm start` both run `server.js`, which boots Next.js internally and attaches Socket.IO
 - The TV display (`/tv`) connects as a special "tv" client via WebSocket; mobile clients connect on join
-- Queue state lives in-memory on the server (no database) — managed by `src/services/session.ts`
+- Queue state lives in memory in `server.js` (no database); a restart empties it
 
 ## Key Paths
 
 | Area                                     | Path                                                                        |
 | ---------------------------------------- | --------------------------------------------------------------------------- |
-| Custom server (WebSocket + queue logic)  | `server.js` (1100 lines — the "backend")                                    |
+| Custom server (WebSocket + queue logic)  | `server.js` (the "backend") and `server/`                                   |
 | API routes (REST for queue, songs, etc.) | `src/app/api/`                                                              |
 | TV display page                          | `src/app/tv/page.tsx`                                                       |
 | Mobile entry page                        | `src/app/page.tsx`                                                          |
@@ -55,7 +55,7 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 
 ## Docs
 
-- `HOWTO.md` is the one setup guide (options A and B, Jellyfin user/API key, plugin, Karaoke Party channel, Tailscale example, settings reference, troubleshooting); screenshots in `docs/howto/`. README.md stays an overview that links to it; DOCKER.md covers the image; `docs/CDG.md` and `jellyfin-plugin/README.md` are references. Put setup steps in HOWTO.md only
+- The README lists every doc. `HOWTO.md` is the one setup guide (options A and B, Jellyfin user/API key, plugin, Karaoke Party channel, Tailscale example, settings reference, troubleshooting); screenshots in `docs/howto/`. README.md stays an overview that links to it; DOCKER.md covers the image; `docs/CDG.md` and `jellyfin-plugin/README.md` are references. Put setup steps in HOWTO.md only
 - A new setting goes in HOWTO.md section 10 and `.env.example`
 - Log features, changes and bug fixes in `CHANGES.md` under the app or plugin version they ship in; bump `package.json` / `jellyfin-plugin/build.yaml` (and the `.csproj` and `KaraokeCdg_<version>` folder names) for a release
 
@@ -71,37 +71,12 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 
 ## Testing
 
-### Unit Tests
+Details in [TESTING.md](TESTING.md) (and CI/publishing in [GITHUB-ACTIONS-SETUP.md](GITHUB-ACTIONS-SETUP.md)). The essentials:
 
-- Vitest + @testing-library/react + jsdom
-- Coverage thresholds: 60% branches, 65% functions/lines/statements
-- Config: `vitest.config.ts`
-- Tests live in `__tests__/` mirroring `src/` structure
-
-### E2E / Acceptance Tests
-
-- **Playwright + playwright-bdd** (Gherkin `.feature` files)
-- Projects in `playwright.config.ts` (CI runs all of them):
-  - `single-user` — headless, one browser context
-  - `multi-user`, `audience-reactions`, `admin-sync`, `fair-rotation` — headless, multiple isolated contexts (Alice, Bob, TV)
-  - `favorites-history` — headless, runs serially
-  - `cdg-graphics` — a phone picks CD+G songs (sidecar and zipped) and the TV must draw the graphics
-  - `full-playback` — **headed** via xvfb in CI, uses real audio decoding
-- Before running: `npx bddgen` regenerates `.features-gen/` from features + steps
-- E2E tests hit a **real Jellyfin server** (not mocked): in CI, the one `scripts/ci` sets up. Locally, any Jellyfin with that library works — timeouts must account for network latency
-
-### CI
-
-- GitHub Actions: `.github/workflows/ci.yml`
-- Runs on PRs and pushes to main
-- Steps: lint → format → unit tests → CRAP → build → plugin build → Jellyfin in Docker → plugin checks → all Playwright projects (under xvfb)
-- CI runs its own Jellyfin (`jellyfin/jellyfin:12.1`) with the Karaoke CDG plugin from the commit, so no secrets are needed:
-  - `scripts/ci/make-library.sh` builds the test library: lyric songs under artists A–T (tests pick artists by position), a `.cdg` song, a zipped song and a song with neither under "Zz …" artists
-  - `scripts/ci/setup-jellyfin.sh` runs the startup wizard, adds the library, waits for the zip placeholders, creates an API key and a playlist, and writes `.env.local`
-  - `scripts/ci/plugin-checks.js` checks `/Karaoke/Songs`, the render estimate/start/cancel/progress, admin-only access and the video cache
-- On failure, the Playwright report, test results and Jellyfin's log are uploaded as the `test-results` artifact
-- Docker image (`.github/workflows/docker-publish.yml`): built on PRs and pushes to main; published only on main/tag pushes when the `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets are set, as `vars.DOCKER_IMAGE` (default `mrorbitman/karaoke-for-jellyfin`)
-- Concurrency group cancels stale runs on new pushes
+- Unit tests: Vitest in `__tests__/` mirroring `src/` and `server/`; coverage thresholds 60% branches, 65% functions/lines/statements; files in `src/` and `server/` max 150 lines (`npm run test:crap`)
+- E2E: Playwright + playwright-bdd against a **real Jellyfin** (CI runs `jellyfin/jellyfin:12.1` with the plugin from the commit, set up by `scripts/ci/`); run `npx bddgen` first. Follow the patterns in TESTING.md: `clearQueue()` per scenario, `skipCurrentSong()` in headless, `.or()` queue assertions, generous timeouts
+- The plugin has no unit tests; `scripts/ci/plugin-checks.js` checks it through Jellyfin
+- `cypress/` is legacy and not run
 
 ## Live channel (`server/live/`, `LIVE_CHANNEL=true`)
 
@@ -111,51 +86,9 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 - While watched, the channel is the TV: it calls `completeCurrentSong()` / `startNextSong()` in server.js, and the socket `song-ended` / `start-next-song` events are ignored. It stops 30 s after the last viewer leaves
 - Unit tests fake ffmpeg; to see real output, run it with ffmpeg installed and read `/api/live/stream.ts` with `ffmpeg -i … -c copy out.ts`
 
-## TV Display Transition Flow
+## Socket events, TV transitions and the queue API
 
-The TV cycles through display states managed by `TransitionState`:
-
-```
-waiting → playing → applause (rating animation) → next-up (splash) → playing (next song)
-                                                 → waiting (if queue empty)
-```
-
-- `applause` state shows `RatingAnimation` with letter grade + "Up Next" info
-- `next-up` state shows `NextSongSplash` before starting next song
-- Song ratings are randomly generated server-side (`server.js` / `lib/ratingGenerator.ts`)
-
-## WebSocket Events (server.js)
-
-Key socket events: `join-session`, `add-song`, `remove-song`, `playback-control`, `skip-song`, `song-ended`, `start-next-song`
-
-## Queue API (REST)
-
-- `GET /api/queue` — read-only view of the live queue in `server.js`: `{success, data: {queue, currentSong, playbackState, session}}` (404 before anyone joins)
-- `POST` / `PUT` / `DELETE /api/queue` — return 410. Change the queue over Socket.IO (`add-song`, `remove-song`, `skip-song`)
-- The old REST session store (`src/services/session/`), its handlers (`src/app/api/queue/handlers/`) and `src/lib/websocket/` are commented out, kept for reference. They never shared state with the socket queue
-
-## E2E Testing Patterns
-
-### Multi-user tests
-
-- Use `clearQueue()` from `e2e/steps/queue-cleanup.ts` at the start of each scenario to prevent state bleed between tests (it removes songs over Socket.IO)
-- Song additions use artist-item → add-song-button pattern (not search queries)
-- `ConfirmationDialog` has a 2s auto-close but tests dismiss it explicitly via close button
-- Song transitions in headless use `skipCurrentSong()` (a `skip-song` socket event) — audio `ended` events don't fire reliably in headless Chromium
-- Queue assertions use `.or()` pattern: `queueItem.or(nowPlaying)` since first song auto-plays
-
-### Full-playback tests (headed)
-
-- Real audio playback with `--autoplay-policy=no-user-gesture-required`
-- To avoid 3+ minute waits, seeks to 5s before end, then waits for natural `audio.ended`
-- Next-song splash assertion uses `.or(lyrics)` to handle race where server advances before client captures nextSong
-- `xvfb-run` provides the virtual display in CI
-
-### Timeouts
-
-- Remote Jellyfin API calls need 15s+ timeouts in CI (default 5s is too short)
-- TV display transitions: 30s for lyrics/countdown to appear
-- Full song playback: 60s for `audio.ended` after seeking
+See [WEBSOCKET-EVENT-FLOW.md](WEBSOCKET-EVENT-FLOW.md): every client ↔ server event, a song from start to finish, the TV's `TransitionState` (waiting → playing → applause → next-up), skips, `GET /api/queue` (read-only; writes answer 410) and known gaps (`reorder-queue` has no server handler).
 
 ## Pre-commit Hooks
 

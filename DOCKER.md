@@ -4,7 +4,7 @@ To run Karaoke for Jellyfin, follow [HOWTO.md](HOWTO.md): it has the compose fil
 
 ## What's in the image
 
-- **`mrorbitman/karaoke-for-jellyfin`**: `latest` follows `main`; pushing a Git tag like `v0.2.0` publishes `0.2.0` and `0.2`. Built for `linux/amd64` and `linux/arm64`.
+- **`mrorbitman/karaoke-for-jellyfin`** on Docker Hub, for `linux/amd64` and `linux/arm64`. Tags and publishing: [GITHUB-ACTIONS-SETUP.md](GITHUB-ACTIONS-SETUP.md).
 - **Node.js 20 on Alpine**, running `server.js` (Next.js and Socket.IO) as the non-root user `nextjs` (UID 1001).
 - **Port 3000** inside the container (`PORT`, `HOSTNAME=0.0.0.0`); map it to any host port, for example `3967:3000`.
 - **ffmpeg and the DejaVu font**, for the optional Karaoke Party channel (`LIVE_CHANNEL=true`). Its temporary files go to `/tmp/karaoke-live` inside the container.
@@ -23,8 +23,6 @@ For both architectures:
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 -t karaoke-for-jellyfin .
 ```
-
-The GitHub workflow `.github/workflows/docker-publish.yml` builds the image on every pull request and push to `main`, and publishes it on `main` and tag pushes when the `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` secrets are set (see [GITHUB-ACTIONS-SETUP.md](GITHUB-ACTIONS-SETUP.md)).
 
 ## Developing with Docker
 

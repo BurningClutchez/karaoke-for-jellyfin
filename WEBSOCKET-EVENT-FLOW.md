@@ -1,229 +1,101 @@
-# WebSocket Event Flow for Karaoke Transitions
+# Socket events and song transitions
 
-This document explains the WebSocket event flow for handling song transitions, applause, and ratings in the karaoke app.
+How the phones, the host page, the TV and the server talk over Socket.IO, and how a song moves from queued to finished. This is a reference for working on the code; setup is in [HOWTO.md](HOWTO.md).
 
-## Current Flow (With Issues)
+## The basics
+
+- **One party at a time.** `server.js` runs Next.js and Socket.IO on the same port and keeps a single session, `main-session`, in memory. Restarting the app empties it.
+- **The TV** connects with `?client=tv` and joins automatically as **TV Display** (a new TV replaces an old one).
+- **Phones and the host page** send `join-session` with the singer's name. A name that is already connected replaces its old connection.
+- **Heartbeats:** clients send `user-heartbeat` every 30 seconds; users not seen for 5 minutes are removed (checked every 2 minutes). When the last user leaves, the session ends.
+- **Safety** (`server/socket-guard.js`): every handler's errors are caught and reported to that client as `error`; the payloads of the main events are validated first; user-driven events are rate-limited per connection (`RATE_LIMITS`), answering `error` with code `RATE_LIMITED`.
+
+## Client → server
+
+| Event              | Payload                    | Sent by           | What the server does                                                                                                                                    | Limit / min |
+| ------------------ | -------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `join-session`     | `{ sessionId, userName }`  | phones, host page | Joins (creating the session if needed); answers `session-updated`, tells others `user-joined`                                                           | 20          |
+| `add-song`         | `{ mediaItem, position? }` | phones            | Inserts with fair rotation between singers; starts it if nothing is playing; asks the plugin to prepare and render it ahead                             | 30          |
+| `remove-song`      | `{ queueItemId }`          | phones, host      | Removes a pending song                                                                                                                                  | 60          |
+| `skip-song`        | –                          | TV, host, phones  | Ends the current song and starts the next one straight away (see [Skips](#skips))                                                                       | 30          |
+| `playback-control` | `{ action, value? }`       | TV, host          | `play`, `pause`, `seek`, `volume`, `mute`, `lyrics-offset`: updates the state and broadcasts it. `time-update`: the TV's position, passed to the others | –           |
+| `song-ended`       | –                          | TV                | The song finished: rating and `song-ended` (see below). Ignored while the Karaoke Party channel is watched                                              | –           |
+| `start-next-song`  | –                          | TV                | After the between-song screens: starts the next pending song. Ignored while the channel is watched                                                      | –           |
+| `playback-failed`  | `{ title, reason }`        | TV                | Logs it and sends everyone a `notice` ("… couldn't play … and was skipped")                                                                             | 30          |
+| `send-reaction`    | `{ emoji }`                | phones            | Broadcasts `reaction-received`                                                                                                                          | 60          |
+| `user-heartbeat`   | –                          | everyone          | Marks the user as seen                                                                                                                                  | –           |
+
+## Server → client
+
+| Event                       | Payload                                                      | When                                                                 |
+| --------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `session-joined`            | `{ session, userId, queue, currentSong, playbackState }`     | To the TV when it connects                                           |
+| `session-updated`           | `{ session, queue, currentSong, playbackState }`             | To a phone or host page that sent `join-session`                     |
+| `user-joined` / `user-left` | the user / `{ userId }`                                      | To the others when someone joins or leaves                           |
+| `queue-updated`             | `QueueItem[]`                                                | Whenever the queue changes                                           |
+| `song-started`              | `QueueItem`                                                  | A song starts                                                        |
+| `song-ended`                | `{ song, rating, nextSong }` (after a skip: the song itself) | A song ends                                                          |
+| `playback-state-changed`    | `PlaybackState`                                              | Play, pause, seek, volume, mute, lyrics offset, position updates     |
+| `reaction-received`         | `{ id, emoji, userId, userName, timestamp }`                 | Someone sent a reaction                                              |
+| `notice`                    | `{ level, message }`                                         | A song couldn't play, the TV seems stuck, the channel skipped a song |
+| `error`                     | `{ code, message }`                                          | A request was invalid, rate-limited or failed                        |
+
+## A song from start to finish
 
 ```mermaid
 sequenceDiagram
-    participant Client as TV Client
-    participant Server as WebSocket Server
-    participant Audio as Audio Player
+    participant Phone
+    participant Server
+    participant TV
 
-    Note over Client,Server: Song is currently playing
-
-    Audio->>Client: Song ends naturally
-    Client->>Server: emit("song-ended")
-
-    Note over Server: Server processes song end
-    Server->>Server: Generate random rating
-    Server->>Server: Mark song as completed
-    Server->>Server: Reset playback state
-
-    Server->>Client: emit("song-completed", {song, rating})
-    Server->>Client: emit("song-ended", completedSong)
-
-    Note over Client: PROBLEM: song-ended sets currentSong=null
-    Client->>Client: setCurrentSong(null)
-
-    Note over Client: song-completed tries to start transitions
-    Client->>Client: handleSongCompleted() - but currentSong is null!
-
-    Note over Client: Transitions may not work properly
+    Phone->>Server: add-song
+    Server->>TV: queue-updated, song-started, playback-state-changed
+    Note over TV: plays the song (lyrics or CD+G)
+    loop every 2 s
+        TV->>Server: playback-control {time-update}
+        Server->>Phone: playback-state-changed
+    end
+    TV->>Server: song-ended
+    Note over Server: rating, song marked completed
+    Server->>TV: song-ended {song, rating, nextSong}
+    Server->>Phone: song-ended, queue-updated
+    Note over TV: applause (rating) → next-up splash
+    TV->>Server: start-next-song
+    Server->>TV: song-started, queue-updated, playback-state-changed
 ```
 
-## Issues with Current Flow
+### The TV's screens
 
-1. **Race Condition**: `song-ended` and `song-completed` events are emitted simultaneously
-2. **State Conflict**: `song-ended` sets `currentSong = null` before transitions can use the song data
-3. **Redundant Events**: We have two events doing similar things
-4. **Applause Not Triggering**: Transitions don't start because song data is cleared
+The TV's `TransitionState` moves through:
 
-## Proposed Simplified Flow
-
-```mermaid
-sequenceDiagram
-    participant Client as TV Client
-    participant Server as WebSocket Server
-    participant Audio as Audio Player
-    participant Applause as Applause Player
-
-    Note over Client,Server: Song is currently playing
-
-    Audio->>Client: Song ends naturally
-    Client->>Server: emit("song-ended")
-
-    Note over Server: Server processes song end
-    Server->>Server: Generate random rating
-    Server->>Server: Mark song as completed
-    Server->>Server: Find next song (don't start yet)
-
-    Server->>Client: emit("song-ended", {song, rating, nextSong})
-
-    Note over Client: Start transition sequence
-    Client->>Client: Start applause state
-    Client->>Applause: Play applause audio
-    Client->>Client: Show rating animation (15s)
-
-    Note over Client: Rating animation completes
-    Client->>Client: Show next song splash (15s)
-
-    Note over Client: Splash completes
-    Client->>Server: emit("start-next-song")
-
-    Note over Server: Start next song
-    Server->>Server: Set next song as current & playing
-    Server->>Client: emit("song-started", nextSong)
-    Server->>Client: emit("playback-state-changed", state)
+```
+waiting → playing → applause → next-up → playing (next song)
+                             ↘ waiting (queue empty)
 ```
 
-## Event Definitions
+- **applause:** `RatingAnimation` with the (random, server-generated) grade and the next song; lasts `RATING_ANIMATION_DURATION`.
+- **next-up:** `NextSongSplash`; lasts `NEXT_SONG_DURATION`, then the TV sends `start-next-song`.
 
-### Client → Server Events
+### Skips
 
-| Event              | Payload                 | Description                                  |
-| ------------------ | ----------------------- | -------------------------------------------- |
-| `song-ended`       | `null`                  | Sent when audio player detects song end      |
-| `start-next-song`  | `null`                  | Request to start next song after transitions |
-| `playback-control` | `PlaybackCommand`       | Play/pause/seek controls                     |
-| `join-session`     | `{sessionId, userName}` | Join karaoke session                         |
+`skip-song` marks the song skipped, sends `song-ended` with the song itself (no rating), and starts the next song immediately with `song-started`, without the applause and next-up screens.
 
-### Server → Client Events
+### When something goes wrong
 
-| Event                    | Payload                     | Description                     |
-| ------------------------ | --------------------------- | ------------------------------- |
-| `song-ended`             | `{song, rating, nextSong?}` | Song completed with rating data |
-| `song-started`           | `QueueItem`                 | New song has started playing    |
-| `queue-updated`          | `QueueItem[]`               | Queue has changed               |
-| `playback-state-changed` | `PlaybackState`             | Playback state updated          |
+- **Audio error or stuck loading:** the TV retries once from where it stopped; if that fails it sends `playback-failed` and skips.
+- **No progress:** if a song is playing with a TV connected and no `time-update` arrives with a new position for `PLAYBACK_STALL_SECONDS`, the server logs it and sends a `notice` (and skips with `PLAYBACK_STALL_ACTION=skip`). See `server/playback-watchdog.js`.
 
-## State Management
+### With the Karaoke Party channel
 
-### TV Display States
+While Jellyfin watches the channel, the channel is the TV (`server/live/`): it calls `completeCurrentSong()` and `startNextSong()` in `server.js` itself, shows its own "Up next" card for `LIVE_NEXT_UP_SECONDS`, reports the position every 2 seconds, and the socket `song-ended` and `start-next-song` events are ignored.
 
-```mermaid
-stateDiagram-v2
-    [*] --> waiting: No songs in queue
-    waiting --> playing: Song starts
-    playing --> applause: Song ends (with rating)
-    applause --> next_up: Rating animation complete
-    applause --> waiting: No next song
-    next_up --> playing: Next song starts
-    next_up --> waiting: User skips/cancels
-```
+## The queue over REST
 
-### Client State Flow
+- `GET /api/queue`: a read-only view of the live queue, `{ success, data: { queue, currentSong, playbackState, session } }`; 404 before anyone has joined.
+- `POST`, `PUT` and `DELETE /api/queue` answer 410: change the queue over Socket.IO.
+- The old REST session store (`src/services/session/`), its handlers (`src/app/api/queue/handlers/`) and `src/lib/websocket/` are commented out and kept for reference; they never shared state with the socket queue.
 
-1. **Playing State**:
-   - Current song is active
-   - Lyrics display visible
-   - Audio playing
+## Known gaps
 
-2. **Applause State** (15 seconds):
-   - Applause audio plays
-   - Rating animation shows
-   - Song data still available for display
-
-3. **Next-Up State** (15 seconds):
-   - Next song information displayed
-   - Countdown timer
-   - Microphone reminder
-
-4. **Transition State**:
-   - Brief state while starting next song
-   - Server processes start-next-song request
-
-## Implementation Changes Needed
-
-### 1. Simplify Server Events
-
-```javascript
-// Instead of emitting both events:
-io.to(sessionId).emit("song-completed", {
-  song: completedSong,
-  rating: rating,
-});
-io.to(sessionId).emit("song-ended", completedSong);
-
-// Emit single event with all data:
-io.to(sessionId).emit("song-ended", {
-  song: completedSong,
-  rating: rating,
-  nextSong: nextSong || null,
-});
-```
-
-### 2. Update Client Handler
-
-```javascript
-socket.on("song-ended", data => {
-  if (data.rating) {
-    // This is a completion with rating - start transitions
-    handleSongCompleted(data);
-  } else {
-    // This is a simple song end (skip, etc.) - just clear current song
-    setCurrentSong(null);
-  }
-});
-```
-
-### 3. Remove Redundant Events
-
-- Remove `song-completed` event entirely
-- Use enhanced `song-ended` event for all song completions
-- Keep existing `song-started` for new songs
-
-## Benefits of Simplified Flow
-
-1. **No Race Conditions**: Single event with all needed data
-2. **Clearer State Management**: One source of truth for song completion
-3. **Reliable Applause**: Transitions start immediately with song data intact
-4. **Easier Debugging**: Fewer events to track
-5. **Better Performance**: Less network traffic
-
-## Testing the Flow
-
-### Manual Test Steps
-
-1. **Start a song** - Verify `song-started` event and playing state
-2. **Let song complete naturally** - Check for applause and rating animation
-3. **Verify next song splash** - Confirm countdown and song info display
-4. **Check auto-start** - Next song should begin automatically
-5. **Test skip functionality** - Space/S keys should skip transitions
-
-### Debug Console Messages
-
-```javascript
-// Expected console output:
-"Song ended naturally, notifying server";
-"Generated rating for 'Song Title': A+ (95/100)";
-"Song ended with rating data: {song: {...}, rating: {...}}";
-"Song completed via socket, starting transition sequence";
-"Applause playing successfully via socket trigger";
-"Rating animation complete";
-"Next song splash complete, starting next song";
-"Starting next song: Next Song Title";
-```
-
-## Error Handling
-
-### Common Issues
-
-1. **No Applause Audio**: Check browser console for autoplay errors
-2. **Transitions Skip**: Verify socket events are being received
-3. **Rating Not Showing**: Check that rating data is in song-ended event
-4. **Next Song Doesn't Start**: Verify start-next-song event is sent
-
-### Debugging Commands
-
-```javascript
-// In browser console on TV page:
-// Check current transition state
-console.log(window.transitionState);
-
-// Check WebSocket connection
-console.log(window.socket?.connected);
-
-// Manually trigger applause
-window.dispatchEvent(new CustomEvent("test-applause"));
-```
+- **`reorder-queue`** is sent by the TV's host controls and the host page's Queue tab, but the server has no handler, so reordering does nothing.
+- **`lyrics-sync`** is declared for clients but never sent; the TV syncs lyrics itself from `/api/lyrics`.

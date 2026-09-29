@@ -1,386 +1,99 @@
-# Testing Guide for Karaoke for Jellyfin
-
-This document provides a comprehensive overview of the testing strategy and implementation for the Karaoke for Jellyfin application.
-
-## Testing Stack
-
-- **E2E Testing**: Cypress for end-to-end testing
-- **Component Testing**: Cypress component testing for React components
-- **Unit Testing**: Jest for unit tests (existing)
-- **API Mocking**: Cypress intercepts for reliable testing
-
-## Test Coverage
-
-### 1. Mobile Interface Tests (`cypress/e2e/mobile-interface.cy.ts`)
-
-**User Setup & Authentication**
-
-- ✅ New user setup flow
-- ✅ Username persistence across sessions
-- ✅ Session joining and WebSocket connection
-
-**Search Functionality**
-
-- ✅ Default artist loading
-- ✅ Unified search (songs, artists, albums)
-- ✅ Search result filtering and pagination
-- ✅ No results handling
-- ✅ Search result section collapsing
-
-**Navigation**
-
-- ✅ Tab switching (Search ↔ Queue)
-- ✅ Artist detail navigation
-- ✅ Playlist navigation
-- ✅ Back button functionality
-
-**Queue Management**
-
-- ✅ Adding songs from search results
-- ✅ Adding songs from artist/playlist views
-- ✅ Queue display with position numbers
-- ✅ Song removal from queue
-- ✅ Queue reordering (drag & drop)
-- ✅ Empty queue state
-
-### 2. Admin Interface Tests (`cypress/e2e/admin-interface.cy.ts`)
-
-**Authentication**
-
-- ✅ Admin login form
-- ✅ Credential validation
-- ✅ Session persistence
-
-**Playback Controls**
-
-- ✅ Play/pause functionality
-- ✅ Skip to next song
-- ✅ Volume control and muting
-- ✅ Seek/scrub through songs
-- ✅ Lyrics timing adjustment
-
-**Queue Management**
-
-- ✅ Queue status display
-- ✅ Song details in admin view
-- ✅ Admin song removal
-- ✅ Queue position tracking
-
-**Emergency Controls**
-
-- ✅ Emergency stop functionality
-- ✅ Song restart capability
-- ✅ System status monitoring
-
-**System Monitoring**
-
-- ✅ Connection status indicators
-- ✅ Active user count
-- ✅ Cache management
-- ✅ Real-time updates
-
-### 3. TV Interface Tests (`cypress/e2e/tv-interface.cy.ts`)
-
-**Initial State**
-
-- ✅ Waiting screen with QR code
-- ✅ Instructions for mobile access
-- ✅ App branding display
-
-**Queue Display**
-
-- ✅ Next-up sidebar
-- ✅ Queue preview with song details
-- ✅ User attribution ("Added by")
-- ✅ Position numbering
-
-**Song Playback**
-
-- ✅ Audio player display
-- ✅ Current song information
-- ✅ Lyrics display and synchronization
-- ✅ Progress bar and timing
-- ✅ Current lyric highlighting
-
-**Host Controls**
-
-- ✅ Keyboard shortcuts
-- ✅ On-screen control overlay
-- ✅ Auto-hide functionality
-- ✅ Volume and playback controls
-
-**Auto-play & Transitions**
-
-- ✅ Auto-play when songs added
-- ✅ Countdown timers
-- ✅ Rating animations
-- ✅ Next song splash screens
-- ✅ Smooth transitions
-
-**Visual Effects**
-
-- ✅ Applause animations
-- ✅ Background effects
-- ✅ Responsive design across resolutions
-
-### 4. Integration Tests (`cypress/e2e/integration-flow.cy.ts`)
-
-**Complete Workflow**
-
-- ✅ Full karaoke session setup
-- ✅ Multi-interface coordination
-- ✅ Cross-device synchronization
-
-**Multi-User Scenarios**
-
-- ✅ Simultaneous song additions
-- ✅ Queue sharing between users
-- ✅ Real-time updates across sessions
-
-**Error Recovery**
-
-- ✅ API failure handling
-- ✅ WebSocket disconnection recovery
-- ✅ Network issue resilience
-- ✅ State persistence during errors
-
-**Performance Testing**
-
-- ✅ Rapid song additions
-- ✅ Large queue handling
-- ✅ Memory leak prevention
-- ✅ Responsive UI under load
-
-**Accessibility**
-
-- ✅ Keyboard navigation
-- ✅ Focus management
-- ✅ Screen reader compatibility
-- ✅ Color contrast validation
-
-### 5. Component Tests (`cypress/component/`)
-
-**SearchInterface Component**
-
-- ✅ Rendering and basic functionality
-- ✅ Search input handling
-- ✅ Tab switching
-- ✅ API integration
-- ✅ Error state handling
-- ✅ Connection state management
-
-## Test Data & Mocking
-
-### Mock Data Structure
-
-**Artists** (`cypress/fixtures/artists.json`)
-
-- The Beatles, Queen, Led Zeppelin, Pink Floyd, The Rolling Stones
-
-**Songs** (`cypress/fixtures/songs.json`)
-
-- Hey Jude, Bohemian Rhapsody, Stairway to Heaven, Wish You Were Here, Paint It Black
-
-**Albums** (`cypress/fixtures/albums.json`)
-
-- Abbey Road, A Night at the Opera, Led Zeppelin IV, The Dark Side of the Moon
-
-**Playlists** (`cypress/fixtures/playlists.json`)
-
-- Classic Rock Hits, Karaoke Favorites, 80s Greatest Hits, Pop Anthems
-
-**Queue State** (`cypress/fixtures/queue.json`)
-
-- Sample queue with 2 songs and metadata
-
-### API Mocking Strategy
-
-All external API calls are intercepted and mocked:
-
-- Jellyfin API endpoints (`/api/artists`, `/api/songs`, etc.)
-- WebSocket connections for real-time updates
-- Audio streaming endpoints
-- Lyrics retrieval endpoints
-
-## Custom Cypress Commands
-
-### User Management
-
-```javascript
-cy.setupUser(username); // Complete user setup flow
-cy.waitForWebSocketConnection(); // Wait for connection establishment
+# Testing
+
+How Karaoke for Jellyfin and the Karaoke CDG plugin are tested: unit tests, end-to-end tests against a real Jellyfin, the plugin checks, and CI. For the release and publishing workflows, see [GITHUB-ACTIONS-SETUP.md](GITHUB-ACTIONS-SETUP.md).
+
+## Commands
+
+| Command                   | What it does                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `npm test`                | Unit tests (Vitest)                                                                   |
+| `npm run test:coverage`   | Unit tests with Istanbul coverage (thresholds below)                                  |
+| `npm run test:crap`       | CRAP score check (threshold 15) and the 150-line limit for `src/` and `server/` files |
+| `npm run test:acceptance` | End-to-end tests: `npx bddgen` then `npx playwright test`                             |
+| `npm run lint:check`      | ESLint                                                                                |
+| `npm run format:check`    | Prettier                                                                              |
+| `npm run check:jellyfin`  | Checks the Jellyfin settings in `.env.local` (reachable, key works, user exists)      |
+
+The pre-commit hook (Husky + lint-staged) runs Prettier, the unit tests and a production build.
+
+## Unit tests
+
+- **Vitest** with `@testing-library/react` and jsdom; config in `vitest.config.ts`.
+- Tests live in `__tests__/`, mirroring `src/` (and `server/` in `__tests__/server/`).
+- **Coverage thresholds** (for `src/`): 60% branches, 65% functions, lines and statements.
+- Server modules take their dependencies as arguments (spawn, fetch, clock, logger) so tests can fake them; the live channel's tests fake ffmpeg.
+
+## End-to-end tests
+
+**Playwright + playwright-bdd**: scenarios are Gherkin `.feature` files in `e2e/features/`, with step definitions in `e2e/steps/`. `npx bddgen` generates `.features-gen/` from them before each run. The tests use a **real Jellyfin server**, not mocks.
+
+**Projects** (`playwright.config.ts`; CI runs all of them):
+
+| Project                                                           | What it covers                                                                   |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `single-user`                                                     | One browser: joining, search, playlists, queue, admin and playback controls      |
+| `multi-user`, `audience-reactions`, `admin-sync`, `fair-rotation` | Several isolated browsers (Alice, Bob, the TV) sharing one queue                 |
+| `favorites-history`                                               | My Songs history and favorites (runs serially)                                   |
+| `cdg-graphics`                                                    | A phone picks a `.cdg` song and a zipped song, and the TV must draw the graphics |
+| `full-playback`                                                   | **Headed** (xvfb in CI) with real audio decoding: whole songs and transitions    |
+
+Playwright starts the app itself (`npm start` in CI, `npm run dev` locally) and sets `PLAYBACK_STALL_SECONDS=0`, because headless test TVs can't autoplay and would look stuck.
+
+### Patterns
+
+- **Clean state:** call `clearQueue()` from `e2e/steps/queue-cleanup.ts` at the start of each multi-user scenario; it removes songs over Socket.IO (the REST queue API is read-only).
+- **Adding songs:** open an artist, then press its add-song button, rather than searching.
+- **Confirmation dialog:** it closes itself after 2 seconds, but tests close it explicitly.
+- **Moving to the next song in headless browsers:** use `skipCurrentSong()` (a `skip-song` socket event); audio `ended` events don't fire reliably in headless Chromium.
+- **Queue assertions:** use `queueItem.or(nowPlaying)`, since the first song starts playing straight away.
+- **Full playback:** runs Chromium with `--autoplay-policy=no-user-gesture-required`, seeks to 5 seconds before the end, then waits for the real `ended` event. The next-song splash assertion uses `.or(lyrics)`, because the server can move on before the TV shows the splash.
+- **Timeouts:** 15 seconds or more for Jellyfin calls, 30 seconds for TV transitions (lyrics or countdown), 60 seconds for `ended` after seeking.
+
+### Running them locally against a Jellyfin in Docker
+
+The same setup CI uses works on any machine with Docker, Node.js 20, the .NET 10 SDK and ffmpeg:
+
+```bash
+JF=$HOME/jf-test
+dotnet publish jellyfin-plugin/Jellyfin.Plugin.KaraokeCdg -c Release -o jellyfin-plugin/artifacts
+scripts/ci/make-library.sh "$JF/music"
+mkdir -p "$JF/config/plugins/KaraokeCdg_1.0.1.0" "$JF/cache"
+cp jellyfin-plugin/artifacts/Jellyfin.Plugin.KaraokeCdg.dll "$JF/config/plugins/KaraokeCdg_1.0.1.0/"
+docker run -d --name jellyfin -p 8096:8096 \
+  -v "$JF/config:/config" -v "$JF/cache:/cache" -v "$JF/music:/music:ro" \
+  jellyfin/jellyfin:12.1
+scripts/ci/setup-jellyfin.sh /music .env.local   # overwrites .env.local
+node scripts/ci/plugin-checks.js
+npm run build && npx bddgen && CI=1 xvfb-run -a npx playwright test
 ```
 
-### Search & Navigation
+`setup-jellyfin.sh` signs in as `admin` / `karaoke-ci`, so you can open Jellyfin at `http://localhost:8096` too. The plugin checks expect nothing rendered yet: on a second run, empty `$JF/cache/karaoke-cdg` first.
 
-```javascript
-cy.searchFor(query); // Perform search with results waiting
-cy.navigateToTab(tabName); // Switch between interface tabs
-cy.waitForSearchResults(); // Wait for search completion
-```
+### The test library
 
-### Queue Operations
+`scripts/ci/make-library.sh` builds it with ffmpeg:
 
-```javascript
-cy.addSongToQueue(songTitle); // Add song with confirmation
-cy.removeSongFromQueue(songTitle); // Remove song with confirmation
-```
+- **Lyrics songs** under artists A–T, each with a synced `.lrc` (tests pick artists by their position in the list).
+- **"Zz CDG Artist"**: a song with a `.cdg` file next to it (`scripts/ci/make-cdg.js` writes valid CD+G).
+- **"Zz Zip Artist"**: a zipped `.cdg` + audio song.
+- **"Zz Plain Band"**: a song with neither, which phones must not offer.
 
-### Admin Functions
+## The plugin
 
-```javascript
-cy.verifyAdminControls(); // Verify all admin elements present
-cy.mockJellyfinAPI(); // Set up all API mocks
-```
+The plugin has no unit-test project. `scripts/ci/plugin-checks.js` checks it through a running Jellyfin: the placeholders, `/Karaoke/Songs`, the render estimate, start, cancel and progress through Jellyfin's task manager, admin-only access, the hidden render task, and that a zipped song's cached video is served without extracting the zip.
 
-## Running Tests
+## CI
 
-### Development Workflow
+`.github/workflows/ci.yml` runs on pull requests and pushes to `main` (a newer push cancels a running one):
 
-1. **Start the application**:
+1. Lint, format check, unit tests with coverage, CRAP and file-length check, production build.
+2. Builds the plugin and the test library, and starts `jellyfin/jellyfin:12.1` in Docker with that plugin.
+3. `scripts/ci/setup-jellyfin.sh`: the startup wizard, the library, waiting for the zip placeholders, an API key, a playlist, and `.env.local`. No secrets are needed.
+4. `npm run check:jellyfin`, then the plugin checks.
+5. Every Playwright project, under xvfb.
 
-   ```bash
-   npm run dev
-   ```
+On failure, the Playwright report, the test results and Jellyfin's log are uploaded as the `test-results` artifact.
 
-2. **Open Cypress Test Runner**:
+## Legacy Cypress tests
 
-   ```bash
-   npm run test:e2e:open
-   ```
-
-3. **Run specific test suites**:
-   ```bash
-   npm run test:e2e:mobile      # Mobile interface only
-   npm run test:e2e:admin       # Admin interface only
-   npm run test:e2e:tv          # TV interface only
-   npm run test:e2e:integration # Integration tests only
-   ```
-
-### CI/CD Pipeline
-
-Tests run automatically on:
-
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop`
-- Parallel execution across 4 containers
-- Automatic artifact collection on failures
-
-### Performance Benchmarks
-
-- **Test Suite Execution**: < 10 minutes total
-- **Individual Test**: < 30 seconds average
-- **Page Load Times**: < 3 seconds
-- **API Response Mocking**: < 100ms
-
-## Test Maintenance
-
-### Adding New Tests
-
-1. **Identify the interface**: Mobile, Admin, TV, or Integration
-2. **Add data-testid attributes** to new components
-3. **Update fixtures** if new API endpoints are added
-4. **Create test cases** following existing patterns
-5. **Update custom commands** for new common operations
-
-### Required Test IDs
-
-When adding new features, ensure these `data-testid` attributes are present:
-
-#### Mobile Interface
-
-- User setup: `user-setup`, `username-input`, `join-session-button`
-- Search: `search-input`, `search-results`, `search-tab`, `queue-tab`
-- Content: `artist-item`, `song-item`, `album-item`, `playlist-item`
-- Actions: `add-song-button`, `remove-song-button`
-- Queue: `queue-item`, `queue-content`, `drag-handle`
-
-#### Admin Interface
-
-- Authentication: `admin-interface`, `admin-login`, `admin-password-input`
-- Controls: `playback-controls`, `play-pause-button`, `skip-button`
-- Volume: `volume-control`, `volume-slider`, `mute-button`
-- Queue: `queue-management`, `admin-queue-list`, `admin-queue-item`
-- Emergency: `emergency-controls`, `emergency-stop-button`
-- Status: `system-status`, `connection-indicator`, `cache-status`
-
-#### TV Interface
-
-- Display: `tv-interface`, `waiting-screen`, `qr-code`
-- Playback: `audio-player`, `lyrics-display`, `current-lyric`
-- Queue: `next-up-sidebar`, `queue-preview`, `queue-item-preview`
-- Controls: `host-controls`, `rating-animation`
-- Transitions: `next-song-splash`, `countdown-timer`
-
-### Debugging Failed Tests
-
-1. **Check Screenshots**: Automatic screenshots on failure
-2. **Review Videos**: Full test execution recordings
-3. **Examine Console Logs**: Browser console output
-4. **Verify Test Data**: Ensure fixtures match expected format
-5. **Check API Mocks**: Verify intercepts are working correctly
-
-## Best Practices
-
-### Test Writing
-
-- Use descriptive test names that explain expected behavior
-- Group related tests with `describe` blocks
-- Set up common state in `beforeEach` hooks
-- Make tests independent and able to run in any order
-- Use proper waits instead of fixed delays
-
-### Maintenance
-
-- Keep fixtures up to date with API changes
-- Update test IDs when refactoring components
-- Review and update tests when adding new features
-- Monitor test execution times and optimize slow tests
-- Regularly review and remove obsolete tests
-
-### CI/CD Integration
-
-- Tests must pass before merging
-- Parallel execution for faster feedback
-- Automatic artifact collection for debugging
-- Integration with GitHub status checks
-- Dashboard reporting for test trends
-
-## Troubleshooting
-
-### Common Issues
-
-**WebSocket Connection Failures**
-
-- Ensure development server is running
-- Check for port conflicts
-- Verify WebSocket endpoint configuration
-
-**Element Not Found Errors**
-
-- Confirm `data-testid` attributes are present
-- Check for timing issues with dynamic content
-- Verify component rendering conditions
-
-**API Mocking Issues**
-
-- Ensure intercepts are set up before page visits
-- Check fixture data format matches expectations
-- Verify API endpoint URLs are correct
-
-**Flaky Tests**
-
-- Add proper waits for async operations
-- Check for race conditions in test setup
-- Ensure test isolation and cleanup
-
-### Debug Commands
-
-```javascript
-cy.debug(); // Pause test execution
-cy.screenshot("debug-name"); // Take manual screenshot
-cy.log("Debug message"); // Log to Cypress console
-cy.get('[data-testid="element"]').debug(); // Debug specific element
-```
-
-This comprehensive test suite ensures the Karaoke for Jellyfin application works reliably across all interfaces and user scenarios, providing confidence in deployments and feature additions.
+`cypress/` holds the original Cypress tests. Nothing runs them any more (no npm script, no CI step); the Playwright suites above replaced them.

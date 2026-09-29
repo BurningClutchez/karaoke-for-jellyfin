@@ -1,188 +1,37 @@
-# GitHub Actions Setup for Docker Hub Publishing
+# GitHub Actions: CI, the plugin build and Docker Hub
 
-This document explains how to set up the GitHub Actions workflow to automatically build and publish Docker images to Docker Hub.
+The repository has three workflows. This page covers what each does, the one-time Docker Hub setup, and how to make a release. What the tests check is in [TESTING.md](TESTING.md); what's in the image and how to build it by hand is in [DOCKER.md](DOCKER.md).
 
-## Prerequisites
+| Workflow                                               | Runs on                                                           | What it does                                                                                                                                                         |
+| ------------------------------------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CI** (`ci.yml`)                                      | pull requests, pushes to `main`                                   | Lint, format, unit tests, CRAP check, build, then the plugin and every end-to-end test against its own Jellyfin 12.1 ([TESTING.md](TESTING.md#ci)). Needs no secrets |
+| **Jellyfin plugin** (`jellyfin-plugin.yml`)            | pull requests and pushes to `main` that change `jellyfin-plugin/` | Builds `Jellyfin.Plugin.KaraokeCdg.dll` and uploads it as the `jellyfin-plugin-karaoke-cdg` artifact                                                                 |
+| **Build and Push Docker Image** (`docker-publish.yml`) | pull requests, pushes to `main`, `v*` tags, or by hand            | Builds the image (amd64 on pull requests); on `main` and tags, also arm64, and publishes to Docker Hub when the secrets below are set                                |
 
-1. **Docker Hub Account**: You need a Docker Hub account
-2. **GitHub Repository**: Your code should be in a GitHub repository
-3. **Docker Hub Repository**: Create a repository named `karaoke-for-jellyfin` on Docker Hub
+A newer push to the same branch cancels a run still in progress.
 
-## Step 1: Create Docker Hub Access Token
+## One-time setup: publishing to Docker Hub
 
-1. Log into [Docker Hub](https://hub.docker.com/)
-2. Go to **Account Settings** → **Security**
-3. Click **New Access Token**
-4. Give it a name (e.g., "GitHub Actions")
-5. Select **Read, Write, Delete** permissions
-6. Click **Generate**
-7. **Copy the token immediately** (you won't be able to see it again)
+Without these secrets the Docker workflow still builds the image (which checks the Dockerfile) and leaves a "built without publishing" notice.
 
-## Step 2: Set Up GitHub Secrets
+1. **Docker Hub:** create a repository (for example `your-username/karaoke-for-jellyfin`), then **Account Settings → Security → New Access Token** with Read & Write access. Copy the token.
+2. **GitHub:** **Settings → Secrets and variables → Actions**:
+   - Secrets: `DOCKERHUB_USERNAME` (your Docker Hub user) and `DOCKERHUB_TOKEN` (the token).
+   - Variable (optional): `DOCKER_IMAGE`, the repository to publish to. The default is `mrorbitman/karaoke-for-jellyfin`, the original author's account, so set it to your own.
 
-1. Go to your GitHub repository
-2. Click **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Add the following secrets:
+**Tags published:** `latest` from `main`; for a Git tag `v0.2.0`, the tags `0.2.0` and `0.2`. Images are cached between runs with the GitHub Actions cache.
 
-### Required Secrets
+The Docker Hub page's description isn't updated by the workflow: copy [README-DOCKERHUB.md](README-DOCKERHUB.md) into it by hand.
 
-| Secret Name          | Value               | Description                  |
-| -------------------- | ------------------- | ---------------------------- |
-| `DOCKERHUB_USERNAME` | `mrorbitman`        | Your Docker Hub username     |
-| `DOCKERHUB_TOKEN`    | `your_access_token` | The access token from Step 1 |
+## Making a release
 
-Without these secrets the workflow still builds the image, which checks the Dockerfile, but doesn't publish it.
+1. Bump the versions: the app in `package.json` (`npm version <x.y.z> --no-git-tag-version`); the plugin, if it changed, in `jellyfin-plugin/build.yaml`, the `.csproj` (`AssemblyVersion`, `FileVersion`), the `KaraokeCdg_<version>` folder in `ci.yml` and the docs (HOWTO.md, the plugin README), and the version line in README.md.
+2. Log the features, changes and fixes in [CHANGES.md](CHANGES.md).
+3. Merge to `main`, then tag it: `git tag v0.2.0 && git push origin v0.2.0`. The Docker workflow publishes the versioned image.
+4. Attach the plugin DLL from the **Jellyfin plugin** workflow's artifact to a GitHub release, if you publish one.
 
-### Image name (optional variable)
+## When a workflow fails
 
-Images are published as `mrorbitman/karaoke-for-jellyfin` unless you set a repository **variable** (Settings → Secrets and variables → Actions → **Variables** tab):
-
-| Variable       | Value                                | Description                         |
-| -------------- | ------------------------------------ | ----------------------------------- |
-| `DOCKER_IMAGE` | `your-username/karaoke-for-jellyfin` | Docker Hub repository to publish to |
-
-### Adding Each Secret
-
-1. Click **New repository secret**
-2. Enter the **Name** (e.g., `DOCKERHUB_USERNAME`)
-3. Enter the **Secret** value
-4. Click **Add secret**
-5. Repeat for each secret
-
-## Step 3: Verify Workflow Configuration
-
-The workflow file `.github/workflows/docker-publish.yml` is already configured to:
-
-- **Trigger on**:
-  - Push to `main` or `master` branch
-  - New tags (e.g., `v1.0.0`)
-  - Pull requests (build only, no push, amd64 only)
-  - Manual workflow dispatch
-
-- **Build for multiple architectures**:
-  - `linux/amd64` (Intel/AMD 64-bit)
-  - `linux/arm64` (ARM 64-bit, including Apple Silicon)
-
-- **Tag strategy**:
-  - `latest` for main branch
-  - Version tags for releases (e.g., `v1.0.0`, `v1.0`, `v1`)
-  - Branch names for feature branches
-
-## Step 4: Test the Workflow
-
-### Option 1: Push to Main Branch
-
-```bash
-git add .
-git commit -m "feat: add Docker Hub publishing workflow"
-git push origin main
-```
-
-### Option 2: Create a Release Tag
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-### Option 3: Manual Trigger
-
-1. Go to your GitHub repository
-2. Click **Actions** tab
-3. Select **Build and Push Docker Image** workflow
-4. Click **Run workflow**
-5. Choose the branch and click **Run workflow**
-
-## Step 5: Monitor the Build
-
-1. Go to the **Actions** tab in your GitHub repository
-2. Click on the running workflow
-3. Monitor the build progress
-4. Check for any errors in the logs
-
-## Step 6: Verify Docker Hub
-
-1. Go to [Docker Hub](https://hub.docker.com/)
-2. Navigate to your repository (`DOCKER_IMAGE`, or `mrorbitman/karaoke-for-jellyfin` by default)
-3. Verify the image was pushed successfully
-
-## Workflow Features
-
-### Multi-Architecture Support
-
-The workflow builds for both AMD64 and ARM64 architectures, making it compatible with:
-
-- Intel/AMD servers and desktops
-- ARM-based systems (including Raspberry Pi, Apple Silicon Macs)
-
-### Caching
-
-The workflow uses GitHub Actions cache to speed up builds by caching Docker layers.
-
-### Security
-
-- Secrets are never exposed in logs
-- Only pushes images on main branch and tags (not on pull requests), and only when the Docker Hub secrets are set
-- Uses official GitHub Actions for security
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Authentication Failed**
-   - Verify `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are correct
-   - Ensure the access token has the right permissions
-
-2. **Build Fails**
-   - Check the Dockerfile syntax
-   - Verify all dependencies are available
-   - Check the build logs for specific errors
-
-3. **Multi-arch Build Issues**
-   - Some dependencies might not support all architectures
-   - Check if base images support the target architecture
-
-4. **"Built without publishing" notice**
-   - `DOCKERHUB_USERNAME` or `DOCKERHUB_TOKEN` isn't set; add both to publish
-
-### Viewing Logs
-
-1. Go to **Actions** tab in GitHub
-2. Click on the failed workflow run
-3. Click on the job name (e.g., "build-and-push")
-4. Expand the failing step to see detailed logs
-
-## Manual Docker Commands
-
-If you need to build and push manually:
-
-```bash
-# Build for multiple architectures
-docker buildx create --use
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t mrorbitman/karaoke-for-jellyfin:latest \
-  --push .
-
-# Build for single architecture
-docker build -t mrorbitman/karaoke-for-jellyfin:latest .
-docker push mrorbitman/karaoke-for-jellyfin:latest
-```
-
-## Next Steps
-
-Once the workflow is set up and working:
-
-1. **Create releases**: Use semantic versioning (e.g., v1.0.0, v1.1.0)
-2. **Monitor usage**: Check Docker Hub for download statistics
-3. **Update documentation**: Keep README-DOCKERHUB.md up to date (copy it to Docker Hub's description by hand)
-4. **Security**: Regularly rotate access tokens
-
-## Support
-
-If you encounter issues:
-
-1. Check the GitHub Actions logs
-2. Verify your Docker Hub credentials
-3. Test the Docker build locally first
-4. Check the GitHub Actions documentation
+- **CI:** download the `test-results` artifact (the Playwright report, test results and Jellyfin's log). [TESTING.md](TESTING.md#running-them-locally-against-a-jellyfin-in-docker) shows how to run the same tests locally.
+- **Docker, "Username and password required":** the Docker Hub secrets are missing or wrong.
+- **Docker, arm64 only:** a dependency without an arm64 build; the pull-request build is amd64 only, so this shows up first on `main`.

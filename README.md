@@ -83,15 +83,26 @@ Needs Node.js 20 and a Jellyfin server.
 
 ```bash
 npm install
-cp .env.local.example .env.local   # set the three JELLYFIN_ values
+cp .env.example .env.local   # set the three JELLYFIN_ values
 npm run dev                        # http://localhost:3000
 ```
 
-| Command                   | What it does                  |
-| ------------------------- | ----------------------------- |
-| `npm test`                | Unit tests (Vitest)           |
-| `npm run test:acceptance` | End-to-end tests (Playwright) |
-| `npm run lint:check`      | ESLint                        |
-| `npm run build`           | Production build              |
+Tests, lint and CI: [TESTING.md](TESTING.md). The server (`server.js`) runs Next.js and Socket.IO together; the queue lives in memory there. See [CLAUDE.md](CLAUDE.md) for the code layout.
 
-The server (`server.js`) runs Next.js and Socket.IO together; the queue lives in memory there. See [CLAUDE.md](CLAUDE.md) for the code layout.
+## Documentation
+
+| File                                                                                                                                                                                           | What's in it                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [HOWTO.md](HOWTO.md)                                                                                                                                                                           | The setup guide: the app, the plugin, the Karaoke Party channel, settings, troubleshooting |
+| [CHANGES.md](CHANGES.md)                                                                                                                                                                       | What changed in each version of the app and the plugin                                     |
+| [docs/CDG.md](docs/CDG.md)                                                                                                                                                                     | How CD+G songs are found, decoded and played                                               |
+| [jellyfin-plugin/README.md](jellyfin-plugin/README.md)                                                                                                                                         | The Karaoke CDG plugin: endpoints, settings, the Karaoke channel                           |
+| [docs/ANDROID_TV_BUILD.md](docs/ANDROID_TV_BUILD.md)                                                                                                                                           | Building the Android TV app                                                                |
+| [DOCKER.md](DOCKER.md)                                                                                                                                                                         | The Docker image and building it                                                           |
+| [README-DOCKERHUB.md](README-DOCKERHUB.md)                                                                                                                                                     | The text of the Docker Hub page                                                            |
+| [TESTING.md](TESTING.md)                                                                                                                                                                       | Unit and end-to-end tests, the plugin checks, CI                                           |
+| [WEBSOCKET-EVENT-FLOW.md](WEBSOCKET-EVENT-FLOW.md)                                                                                                                                             | Socket events, the TV's screens and the queue API                                          |
+| [GITHUB-ACTIONS-SETUP.md](GITHUB-ACTIONS-SETUP.md)                                                                                                                                             | The workflows, publishing to Docker Hub, making a release                                  |
+| [CLAUDE.md](CLAUDE.md)                                                                                                                                                                         | Code layout and conventions for contributors and AI coding agents                          |
+| [public/sounds/README.md](public/sounds/README.md)                                                                                                                                             | The applause sounds                                                                        |
+| [.kiro/specs/…/requirements.md](.kiro/specs/self-hosted-karaoke/requirements.md), [design.md](.kiro/specs/self-hosted-karaoke/design.md), [tasks.md](.kiro/specs/self-hosted-karaoke/tasks.md) | The original design spec (July 2025; historical, not kept up to date)                      |

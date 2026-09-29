@@ -411,7 +411,7 @@ Open `http://<app address>/tv` in the TV's browser, or use the [Android TV app](
 | ![Join](docs/howto/phone-join.png) | ![Artists](docs/howto/phone-artists.png) | ![Songs](docs/howto/phone-artist-songs.png) | ![Added](docs/howto/phone-song-added.png) | ![Queue](docs/howto/phone-queue.png) |
 
 - **Search** by artist or title, or browse **Playlists** (`PLAYLIST_FILTER_REGEX` limits which playlists show).
-- **Queue:** the current song and what's next. Songs rotate fairly between singers, so one person can't fill the queue. You can drag your songs to reorder them, or remove them.
+- **Queue:** the current song and what's next. Songs rotate fairly between singers, so one person can't fill the queue. You can remove your own songs.
 - **My Songs:** your history and favorites.
 - **Reactions:** the 🎉 button sends emoji that float across the TV while a song plays.
 
