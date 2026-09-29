@@ -5,7 +5,7 @@
 
 A web-based karaoke system that integrates with Jellyfin media server to provide karaoke functionality.
 
-**Version 0.2.0** (Karaoke CDG plugin 1.0.1.0). New in this version:
+**Version 0.2.0** (Karaoke CDG plugin 1.0.1.0). New in this version (every version is in [CHANGES.md](CHANGES.md)):
 
 - **Karaoke Party channel**: the party queue as a Live TV channel in every Jellyfin app ([setup](HOWTO.md#6-the-karaoke-party-channel-optional-either-option))
 - **"Turn on sound" prompt** on the TV when its browser blocks autoplay, and the TV's audio, lyrics and connection errors in the server log

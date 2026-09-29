@@ -57,6 +57,7 @@ npm run check:jellyfin # Check the Jellyfin settings (reachable, key, user)
 
 - `HOWTO.md` is the one setup guide (options A and B, Jellyfin user/API key, plugin, Karaoke Party channel, Tailscale example, settings reference, troubleshooting); screenshots in `docs/howto/`. README.md stays an overview that links to it; DOCKER.md covers the image; `docs/CDG.md` and `jellyfin-plugin/README.md` are references. Put setup steps in HOWTO.md only
 - A new setting goes in HOWTO.md section 10 and `.env.example`
+- Log features, changes and bug fixes in `CHANGES.md` under the app or plugin version they ship in; bump `package.json` / `jellyfin-plugin/build.yaml` (and the `.csproj` and `KaraokeCdg_<version>` folder names) for a release
 
 ## Error handling and logging
 
