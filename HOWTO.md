@@ -490,20 +490,21 @@ Use `docker compose up -d`, not `restart`, which keeps the old settings. Recreat
 
 **Problems:**
 
-| Problem                                                  | Fix                                                                                                                                             |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| TV shows **Press OK or tap the screen to turn on sound** | Press OK (or any key) once. The log says `[client:tv] The browser blocked sound`. Allow autoplay for the site, or use the channel               |
-| Songs sit at 0:00 and get skipped after 60 s             | Same cause: the TV's browser blocked sound (older app versions had no prompt)                                                                   |
-| Regular music shows on phones                            | Check the `karaoke` user's library access (3.2) and that `JELLYFIN_USERNAME` is that user; the log's first line says `Authenticated as user: …` |
-| No album art on phones                                   | `JELLYFIN_SERVER_URL` must be reachable from the phones, not just from the app                                                                  |
-| QR code points somewhere phones can't reach              | Open the TV page on the LAN address; for the channel, set `PUBLIC_URL`                                                                          |
-| CD+G songs show lyrics or nothing                        | Option A: check the mount and `CDG_*` paths. Option B: check `/Karaoke/Status`, and that the song's `.cdg` has the same name as the audio       |
-| A zipped song is missing                                 | Check **Zip folders**, run a library scan, and look for `Could not read <zip>` in Jellyfin's log (the plugin retries on the next pass)          |
-| Karaoke Party channel missing in Jellyfin                | Check the tuner URL opens in a browser (`/api/live/channel.m3u`), then **Refresh Guide Data**. The user needs Live TV access                    |
-| The channel's first song starts slowly                   | CD+G videos render on first use; render ahead (5.3)                                                                                             |
-| Lyrics too early or late                                 | Lyrics timing on the admin page                                                                                                                 |
-| An old version keeps showing                             | Visit `/clear-cache`, use the cache panel on the admin page, or force-refresh the browser                                                       |
-| Can't reach the app from the Docker host (macvlan)       | Expected with macvlan; use another device, a macvlan shim or the tailnet name                                                                   |
+| Problem                                                                   | Fix                                                                                                                                             |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| TV shows **Press OK or tap the screen to turn on sound**                  | Press OK (or any key) once. The log says `[client:tv] The browser blocked sound`. Allow autoplay for the site, or use the channel               |
+| Songs sit at 0:00 and get skipped after 60 s                              | Same cause: the TV's browser blocked sound (older app versions had no prompt)                                                                   |
+| Regular music shows on phones                                             | Check the `karaoke` user's library access (3.2) and that `JELLYFIN_USERNAME` is that user; the log's first line says `Authenticated as user: …` |
+| No album art on phones                                                    | `JELLYFIN_SERVER_URL` must be reachable from the phones, not just from the app                                                                  |
+| QR code points somewhere phones can't reach                               | Open the TV page on the LAN address; for the channel, set `PUBLIC_URL`                                                                          |
+| CD+G songs show lyrics or nothing                                         | Option A: check the mount and `CDG_*` paths. Option B: check `/Karaoke/Status`, and that the song's `.cdg` has the same name as the audio       |
+| A zipped song is missing                                                  | Check **Zip folders**, run a library scan, and look for `Could not read <zip>` in Jellyfin's log (the plugin retries on the next pass)          |
+| Karaoke Party channel missing in Jellyfin                                 | Check the tuner URL opens in a browser (`/api/live/channel.m3u`), then **Refresh Guide Data**. The user needs Live TV access                    |
+| The channel's first song starts slowly                                    | CD+G videos render on first use; render ahead (5.3)                                                                                             |
+| Jellyfin logs `M3UTunerHost: Error getting channels … Connection refused` | Jellyfin started before the app (after a reboot, say). Harmless: the channel plays as soon as the app is up, with no refresh needed             |
+| Lyrics too early or late                                                  | Lyrics timing on the admin page                                                                                                                 |
+| An old version keeps showing                                              | Visit `/clear-cache`, use the cache panel on the admin page, or force-refresh the browser                                                       |
+| Can't reach the app from the Docker host (macvlan)                        | Expected with macvlan; use another device, a macvlan shim or the tailnet name                                                                   |
 
 ## 14. How this guide was tested
 
@@ -515,8 +516,8 @@ On 28 September 2026, against a real **Jellyfin 12.1** container (`jellyfin/jell
 - **Karaoke Party channel:** added through Jellyfin's M3U tuner; Jellyfin's direct stream played continuously (100 s read), its HLS stream played (45 s read), and the queue ran by itself: waiting card → lyrics song → Up next → CD+G song.
 - **Karaoke channel:** listed by artist for the `karaoke` user; the CD+G song played through Jellyfin as a 900×648 H.264 + AAC video.
 - **Screenshots** in this guide come from that server, in a desktop browser (1280×720/800) and a phone-sized one (390×844).
-- **Overnight idle:** a TV page and a phone left connected overnight, then used the next morning: see the results below.
-
-<!-- overnight-results -->
-
-_Overnight results pending: this section is updated after the next-morning check._
+- **The next morning** (29 September): the test machine had been shut down overnight (the cloud environment reclaims idle machines), so Jellyfin and the app came back cold, like a server rebooted in the morning, with everything on disk kept:
+  - Jellyfin came back with the plugin active, the zip placeholder, the rendered videos and the Karaoke Party tuner in place. It started before the app, so it logged `Error getting channels`; the channel then played as soon as the app was up, with nothing refreshed (see Troubleshooting).
+  - The Karaoke Party channel played through Jellyfin again: a CD+G song, then a lyrics song over Jellyfin's HLS stream (60 s, no errors). One read of Jellyfin's direct stream stopped after 29 s on the reading side while Jellyfin kept receiving the whole song from the app; the HLS stream, which the web app and most TV apps use, played in full.
+  - The plugin checks passed again. The render check first reported "0 of 2 to render" because yesterday's videos were still cached, as intended; with the cache emptied, it passed.
+- **Long idle, then use:** a TV page and a phone stayed connected and idle for 2 hours (checked every 10 minutes: all 13 checks connected and healthy, no browser errors). Jellyfin's hourly karaoke tasks ran meanwhile without errors. The phone then queued a song through its UI and the TV played it with synced lyrics within seconds. The app logged no unexpected errors.
