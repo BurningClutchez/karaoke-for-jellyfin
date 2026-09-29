@@ -9,6 +9,7 @@ import {
   fetchLyricsSync,
   getCurrentLineText,
   getNextLineText,
+  errorText,
 } from "./lyricsHelpers";
 
 export type { UseLyricsOptions, UseLyricsReturn };
@@ -49,7 +50,7 @@ export function useLyrics(options: UseLyricsOptions = {}): UseLyricsReturn {
       console.error("Failed to load lyrics:", err);
       reportClientError(
         "warn",
-        `Lyrics failed to load for ${targetSongId}: ${(err as Error)?.message ?? err}`
+        `Lyrics failed to load for ${targetSongId}: ${errorText(err)}`
       );
       setLyricsFile(null);
       setError("Failed to load lyrics");
@@ -69,10 +70,7 @@ export function useLyrics(options: UseLyricsOptions = {}): UseLyricsReturn {
       }
     } catch (err) {
       console.error("Failed to sync lyrics:", err);
-      reportClientError(
-        "warn",
-        `Lyrics sync failed: ${(err as Error)?.message ?? err}`
-      );
+      reportClientError("warn", `Lyrics sync failed: ${errorText(err)}`);
     }
   }, []);
 

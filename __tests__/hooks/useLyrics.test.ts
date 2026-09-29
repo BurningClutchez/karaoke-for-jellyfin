@@ -555,3 +555,11 @@ describe("useLyrics", () => {
     });
   });
 });
+
+describe("errorText", () => {
+  it("reads an Error's message and stringifies anything else", async () => {
+    const { errorText } = await import("@/hooks/lyricsHelpers");
+    expect(errorText(new Error("boom"))).toBe("boom");
+    expect(errorText("offline")).toBe("offline");
+  });
+});
