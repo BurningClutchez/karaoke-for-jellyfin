@@ -88,7 +88,7 @@ Details in [TESTING.md](TESTING.md) (and CI/publishing in [GITHUB-ACTIONS-SETUP.
 
 ## Socket events, TV transitions and the queue API
 
-See [WEBSOCKET-EVENT-FLOW.md](WEBSOCKET-EVENT-FLOW.md): every client ↔ server event, a song from start to finish, the TV's `TransitionState` (waiting → playing → applause → next-up), skips, `GET /api/queue` (read-only; writes answer 410) and known gaps (`reorder-queue` has no server handler).
+See [WEBSOCKET-EVENT-FLOW.md](WEBSOCKET-EVENT-FLOW.md): every client ↔ server event, a song from start to finish, the TV's `TransitionState` (waiting → playing → applause → next-up), skips, `GET /api/queue` (read-only; writes answer 410) and known gaps.
 
 ## Pre-commit Hooks
 

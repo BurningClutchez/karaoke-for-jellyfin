@@ -12,18 +12,19 @@ How the phones, the host page, the TV and the server talk over Socket.IO, and ho
 
 ## Client → server
 
-| Event              | Payload                    | Sent by           | What the server does                                                                                                                                    | Limit / min |
-| ------------------ | -------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `join-session`     | `{ sessionId, userName }`  | phones, host page | Joins (creating the session if needed); answers `session-updated`, tells others `user-joined`                                                           | 20          |
-| `add-song`         | `{ mediaItem, position? }` | phones            | Inserts with fair rotation between singers; starts it if nothing is playing; asks the plugin to prepare and render it ahead                             | 30          |
-| `remove-song`      | `{ queueItemId }`          | phones, host      | Removes a pending song                                                                                                                                  | 60          |
-| `skip-song`        | –                          | TV, host, phones  | Ends the current song and starts the next one straight away (see [Skips](#skips))                                                                       | 30          |
-| `playback-control` | `{ action, value? }`       | TV, host          | `play`, `pause`, `seek`, `volume`, `mute`, `lyrics-offset`: updates the state and broadcasts it. `time-update`: the TV's position, passed to the others | –           |
-| `song-ended`       | –                          | TV                | The song finished: rating and `song-ended` (see below). Ignored while the Karaoke Party channel is watched                                              | –           |
-| `start-next-song`  | –                          | TV                | After the between-song screens: starts the next pending song. Ignored while the channel is watched                                                      | –           |
-| `playback-failed`  | `{ title, reason }`        | TV                | Logs it and sends everyone a `notice` ("… couldn't play … and was skipped")                                                                             | 30          |
-| `send-reaction`    | `{ emoji }`                | phones            | Broadcasts `reaction-received`                                                                                                                          | 60          |
-| `user-heartbeat`   | –                          | everyone          | Marks the user as seen                                                                                                                                  | –           |
+| Event              | Payload                        | Sent by           | What the server does                                                                                                                                    | Limit / min |
+| ------------------ | ------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `join-session`     | `{ sessionId, userName }`      | phones, host page | Joins (creating the session if needed); answers `session-updated`, tells others `user-joined`                                                           | 20          |
+| `add-song`         | `{ mediaItem, position? }`     | phones            | Inserts with fair rotation between singers; starts it if nothing is playing; asks the plugin to prepare and render it ahead                             | 30          |
+| `remove-song`      | `{ queueItemId }`              | phones, host      | Removes a pending song                                                                                                                                  | 60          |
+| `reorder-queue`    | `{ queueItemId, newPosition }` | TV, host          | Moves a waiting song to `newPosition` among the waiting songs (the playing song stays put); answers `SONG_NOT_FOUND` if it isn't waiting                | 60          |
+| `skip-song`        | –                              | TV, host, phones  | Ends the current song and starts the next one straight away (see [Skips](#skips))                                                                       | 30          |
+| `playback-control` | `{ action, value? }`           | TV, host          | `play`, `pause`, `seek`, `volume`, `mute`, `lyrics-offset`: updates the state and broadcasts it. `time-update`: the TV's position, passed to the others | –           |
+| `song-ended`       | –                              | TV                | The song finished: rating and `song-ended` (see below). Ignored while the Karaoke Party channel is watched                                              | –           |
+| `start-next-song`  | –                              | TV                | After the between-song screens: starts the next pending song. Ignored while the channel is watched                                                      | –           |
+| `playback-failed`  | `{ title, reason }`            | TV                | Logs it and sends everyone a `notice` ("… couldn't play … and was skipped")                                                                             | 30          |
+| `send-reaction`    | `{ emoji }`                    | phones            | Broadcasts `reaction-received`                                                                                                                          | 60          |
+| `user-heartbeat`   | –                              | everyone          | Marks the user as seen                                                                                                                                  | –           |
 
 ## Server → client
 
@@ -97,5 +98,4 @@ While Jellyfin watches the channel, the channel is the TV (`server/live/`): it c
 
 ## Known gaps
 
-- **`reorder-queue`** is sent by the TV's host controls and the host page's Queue tab, but the server has no handler, so reordering does nothing.
 - **`lyrics-sync`** is declared for clients but never sent; the TV syncs lyrics itself from `/api/lyrics`.

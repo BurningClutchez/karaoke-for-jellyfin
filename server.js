@@ -8,6 +8,7 @@ const next = require("next");
 const { Server } = require("socket.io");
 const fetch = require("node-fetch");
 const { handleSendReaction } = require("./server/reactions");
+const { handleReorderQueue } = require("./server/queue-reorder");
 const { handlePlaybackFailed } = require("./server/playback-failure");
 const { getFairInsertionIndex } = require("./server/fair-rotation");
 const { guardSocketHandlers } = require("./server/socket-guard");
@@ -938,6 +939,10 @@ app.prepare().then(() => {
       io.to(currentSession.id).emit("queue-updated", currentSession.queue);
       console.log("Song removed from queue");
     });
+
+    socket.on("reorder-queue", data =>
+      handleReorderQueue(io, socket, data, currentSession)
+    );
 
     socket.on("playback-control", command => {
       console.debug("Playback control:", command);

@@ -400,7 +400,7 @@ Open `http://<app address>/tv` in the TV's browser, or use the [Android TV app](
 
 - **Press OK once** (or any key, or tap) after opening the page if the TV shows **Press OK or tap the screen to turn on sound**: most browsers won't play sound until someone interacts with the page. Allowing autoplay for the site in the browser's settings avoids it.
   ![Turn on sound](docs/howto/tv-enable-sound.png)
-- **Keys:** H shows the host controls, Q the queue, Space plays or pauses, S skips.
+- **Keys:** H shows the host controls (drag songs there to reorder the queue), Q the queue, Space plays or pauses, S skips.
 - After each song the TV shows a (random) rating, then the next song's splash, then plays it.
 - If a song is playing but the TV makes no progress for 60 seconds (stuck buffering, a sleeping TV, blocked sound), the phones are told; with `PLAYBACK_STALL_ACTION=skip` the song is skipped too.
 
@@ -419,7 +419,7 @@ Open `http://<app address>/tv` in the TV's browser, or use the [Android TV app](
 
 ![Admin playback](docs/howto/admin.png)
 
-`/admin` has three tabs: **Playback** (play, pause, skip, seek, volume, lyrics timing), **Queue** (see and remove songs), and **Emergency** (stop, restart the song, and system status). Everything syncs to the TV straight away.
+`/admin` has three tabs: **Playback** (play, pause, skip, seek, volume, lyrics timing), **Queue** (move songs up or down, or remove them), and **Emergency** (stop, restart the song, and system status). Everything syncs to the TV straight away.
 
 ![Admin queue](docs/howto/admin-queue.png)
 
