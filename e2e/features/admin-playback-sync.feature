@@ -18,3 +18,11 @@ Feature: Admin Playback Sync
     And the admin page is open
     When Alice adds a song to the queue
     Then the admin page seek slider should update over time
+
+  Scenario: Admin moves a waiting song up the queue
+    Given "Alice" has joined the karaoke session
+    And the TV display is connected
+    And the admin page is open
+    When Alice adds songs by 3 different artists
+    And the admin moves the last waiting song up
+    Then the last two waiting songs should have swapped places
