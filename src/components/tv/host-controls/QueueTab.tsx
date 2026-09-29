@@ -62,10 +62,14 @@ export function QueueTab({
           <p>No songs in queue</p>
         </div>
       ) : (
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div
+          data-testid="host-queue-list"
+          className="space-y-2 max-h-96 overflow-y-auto"
+        >
           {pendingQueue.map((item, index) => (
             <div
               key={item.id}
+              data-testid="host-queue-item"
               draggable
               onDragStart={e => handleDragStart(e, item.id)}
               onDragOver={e => handleDragOver(e, index)}
@@ -83,7 +87,10 @@ export function QueueTab({
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-white font-medium truncate">
+                <p
+                  data-testid="host-queue-title"
+                  className="text-white font-medium truncate"
+                >
                   {item.mediaItem.title}
                 </p>
                 <p className="text-gray-400 text-sm truncate">
@@ -102,6 +109,7 @@ export function QueueTab({
                 </div>
                 {onRemoveSong && (
                   <button
+                    data-testid="host-remove-song"
                     onClick={() => onRemoveSong(item.id)}
                     className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900 hover:bg-opacity-20 rounded-full transition-colors"
                     title="Remove from queue"

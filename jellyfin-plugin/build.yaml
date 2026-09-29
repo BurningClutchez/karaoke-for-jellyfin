@@ -1,7 +1,7 @@
 # Manifest for jprm (https://github.com/oddstr13/jellyfin-plugin-repository-manager)
 name: "Karaoke CDG"
 guid: "1cb1fb71-1f2b-46c8-8544-3491558b01ec"
-version: "1.0.0.0"
+version: "1.0.1.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 owner: "karaoke-for-jellyfin"
@@ -17,4 +17,7 @@ category: "General"
 artifacts:
   - "Jellyfin.Plugin.KaraokeCdg.dll"
 changelog: >
-  Initial release.
+  1.0.1.0: a zip that can't be read (a network share dropping out, a zip still
+  being copied) keeps its placeholder and is tried again on the next pass;
+  placeholders removed by that problem in 1.0.0.0 come back.
+  1.0.0.0: initial release.

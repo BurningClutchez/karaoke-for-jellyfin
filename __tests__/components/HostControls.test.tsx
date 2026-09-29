@@ -115,6 +115,7 @@ const mockPlaybackState: PlaybackState = {
 describe("HostControls", () => {
   const mockProps = {
     session: mockSession,
+    queue: mockSession.queue,
     currentSong: mockCurrentSong,
     playbackState: mockPlaybackState,
     onClose: vi.fn(),
@@ -261,13 +262,22 @@ describe("HostControls", () => {
     expect(mockProps.onClose).toHaveBeenCalled();
   });
 
+  it("lists the live queue, not the queue from when the session joined", () => {
+    render(
+      <HostControls
+        {...mockProps}
+        session={{ ...mockSession, queue: [] }}
+        queue={mockSession.queue}
+      />
+    );
+    fireEvent.click(screen.getByTestId("host-tab-queue"));
+    expect(screen.getAllByTestId("host-queue-item").length).toBeGreaterThan(0);
+  });
+
   it("shows empty queue message when no songs", () => {
     const propsWithEmptyQueue = {
       ...mockProps,
-      session: {
-        ...mockSession,
-        queue: [],
-      },
+      queue: [],
     };
 
     render(<HostControls {...propsWithEmptyQueue} />);

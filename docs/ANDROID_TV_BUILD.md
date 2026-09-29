@@ -45,7 +45,7 @@ Only needed if you want to install the APK directly to a connected device:
 
    ```bash
    # Copy the example file if you haven't already
-   cp .env.local.example .env.local
+   cp .env.example .env.local
 
    # Edit .env.local and set your server URL
    KARAOKE_SERVER_URL=http://192.168.1.100:3967

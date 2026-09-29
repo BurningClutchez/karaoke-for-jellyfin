@@ -34,6 +34,13 @@ const VALIDATORS = {
     isObject(data) && isText(data.queueItemId, 200)
       ? null
       : "remove-song needs a queueItemId",
+  "reorder-queue": data =>
+    isObject(data) &&
+    isText(data.queueItemId, 200) &&
+    Number.isInteger(data.newPosition) &&
+    data.newPosition >= 0
+      ? null
+      : "reorder-queue needs a queueItemId and a newPosition of 0 or more",
   "playback-control": command =>
     isObject(command) && isText(command.action, 50)
       ? null
@@ -52,6 +59,7 @@ const RATE_LIMITS = {
   "join-session": 20,
   "add-song": 30,
   "remove-song": 60,
+  "reorder-queue": 60,
   "skip-song": 30,
   "send-reaction": 60,
   "playback-failed": 30,

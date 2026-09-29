@@ -8,9 +8,13 @@ A Jellyfin plugin for `.cdg` karaoke songs: an audio file with a `.cdg` file of 
 
 ## Install
 
+Step by step, with screenshots and the recommended settings: [HOWTO.md, section 5](../HOWTO.md#5-option-b-the-app-and-the-karaoke-cdg-plugin). In short:
+
 1. Build the DLL (see [Build](#build)), or download it from the "Jellyfin plugin" GitHub workflow.
-2. Create a folder named `KaraokeCdg_1.0.0.0` in Jellyfin's plugin directory (Docker: `/config/plugins/`, Linux: `/var/lib/jellyfin/plugins/`, Windows: `%ProgramData%\Jellyfin\Server\plugins\`) and copy `Jellyfin.Plugin.KaraokeCdg.dll` into it.
+2. Create a folder named `KaraokeCdg_1.0.1.0` in Jellyfin's plugin directory (Docker: `/config/plugins/`, Linux: `/var/lib/jellyfin/plugins/`, Windows: `%ProgramData%\Jellyfin\Server\plugins\`) and copy `Jellyfin.Plugin.KaraokeCdg.dll` into it.
 3. Restart Jellyfin. **Karaoke CDG** appears under **Dashboard → Plugins**, and **Karaoke** under Channels.
+
+The current version is **1.0.1.0**. When updating, delete the old `KaraokeCdg_1.0.0.0` folder so Jellyfin loads only the new one.
 
 The plugin targets Jellyfin 12.1. After a major Jellyfin upgrade, update the `Jellyfin.Controller` and `Jellyfin.Model` versions in the `.csproj` and rebuild.
 
@@ -68,7 +72,7 @@ When a zipped song is queued in Karaoke for Jellyfin, or played in the channel, 
 
 - **Which zips count:** exactly one `.cdg` file and one audio file (MP3, M4A, AAC, OGG, Opus, FLAC, WAV or WMA). `__MACOSX` clutter is ignored, files are extracted under fixed names, and entries over 500 MB are refused.
 - **When placeholders are made:** after every library scan, by the hourly **Create karaoke placeholders** task, and within about 30 seconds if **Watch zip folders** is on. Only new or changed zips are read; the first pass takes about 1–1.5 s per zip.
-- **Keeping in step:** deleted zips lose their placeholder and changed zips get a new one. If a whole zip folder is missing, as with a disconnected NAS, nothing is removed.
+- **Keeping in step:** deleted zips lose their placeholder and changed zips get a new one. If a whole zip folder is missing, as with a disconnected NAS, nothing is removed. A zip that can't be read (a network share dropping out, a zip still being copied, permissions) keeps its placeholder, and the log says `Could not read … trying again on the next pass`; only a zip that was read and isn't a karaoke zip loses it.
 - **Where placeholders go:** by default into their own folder, with its own Karaoke library, because a placeholder played in Jellyfin's music player is silent.
 
 ## Endpoints

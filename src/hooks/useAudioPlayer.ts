@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { QueueItem, PlaybackState } from "@/types";
 import { setupAudioEventListeners, syncPlaybackState } from "./audioPlayerSync";
+import { handlePlayError } from "./playError";
+import { playMedia } from "@/lib/audioUnlock";
+import { reportClientError } from "@/lib/clientLog";
 
 interface UseAudioPlayerOptions {
   song: QueueItem | null;
@@ -53,6 +56,7 @@ export function useAudioPlayer({
 
     if (!song.mediaItem.streamUrl) {
       console.error("No stream URL provided for song:", song.mediaItem.title);
+      reportClientError("error", `No stream URL for "${song.mediaItem.title}"`);
       setError("No stream URL available");
       setIsLoading(false);
       return;
@@ -67,10 +71,9 @@ export function useAudioPlayer({
       setIsLoading(false);
       if (playbackState?.isPlaying && audio.paused) {
         console.log("Audio ready and should be playing - starting playback");
-        audio.play().catch(err => {
-          console.error("Auto-play on ready failed:", err);
-          setError(`Auto-play failed: ${err.message}`);
-        });
+        playMedia(audio).catch(err =>
+          handlePlayError(err, song.mediaItem.title, setError)
+        );
       }
     };
 
@@ -110,7 +113,8 @@ export function useAudioPlayer({
       playbackState,
       isLoading,
       lastSeekTimeRef,
-      setError
+      setError,
+      song.mediaItem.title
     );
   }, [playbackState, isLoading, song]);
 

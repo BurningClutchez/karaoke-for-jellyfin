@@ -1,7 +1,12 @@
 "use client";
 
 import { QueueItem } from "@/types";
-import { QueueListIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  QueueListIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 
 interface AdminQueueTabProps {
   pendingQueue: QueueItem[];
@@ -12,6 +17,7 @@ interface AdminQueueTabProps {
 export function AdminQueueTab({
   pendingQueue,
   onRemoveSong,
+  onReorderQueue,
 }: AdminQueueTabProps) {
   return (
     <div data-testid="queue-management" className="space-y-4">
@@ -65,6 +71,28 @@ export function AdminQueueTab({
                     {Math.floor(item.mediaItem.duration / 60)}:
                     {String(item.mediaItem.duration % 60).padStart(2, "0")}
                   </div>
+                  {onReorderQueue && (
+                    <>
+                      <button
+                        data-testid="admin-move-up"
+                        onClick={() => onReorderQueue(item.id, index - 1)}
+                        disabled={index === 0}
+                        className="p-1 text-gray-500 hover:text-purple-600 disabled:opacity-30"
+                        title="Move up"
+                      >
+                        <ChevronUpIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        data-testid="admin-move-down"
+                        onClick={() => onReorderQueue(item.id, index + 1)}
+                        disabled={index === pendingQueue.length - 1}
+                        className="p-1 text-gray-500 hover:text-purple-600 disabled:opacity-30"
+                        title="Move down"
+                      >
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                   {onRemoveSong && (
                     <button
                       data-testid="admin-remove-song"

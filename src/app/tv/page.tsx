@@ -9,6 +9,7 @@ import { NextUpSidebar } from "@/components/tv/NextUpSidebar";
 import { JoinQRCode } from "@/components/tv/JoinQRCode";
 import { ApplausePlayer } from "@/components/tv/ApplausePlayer";
 import { FloatingReactions } from "@/components/tv/FloatingReactions";
+import { EnableSoundPrompt } from "@/components/tv/EnableSoundPrompt";
 import {
   ConnectionStatus,
   AutoplayCountdownOverlay,
@@ -99,6 +100,7 @@ export default function TVDisplay() {
       {showHostControls && (
         <HostControls
           session={session}
+          queue={queue}
           currentSong={currentSong}
           playbackState={playbackState}
           onClose={() => setShowHostControls(false)}
@@ -125,6 +127,7 @@ export default function TVDisplay() {
       />
       <NextUpSidebar queue={queue} currentSong={currentSong} />
       <FloatingReactions reactions={reactions} />
+      <EnableSoundPrompt />
 
       <div className="absolute bottom-4 left-4 text-gray-500 text-sm">
         <div className="bg-black bg-opacity-50 rounded px-3 py-2">

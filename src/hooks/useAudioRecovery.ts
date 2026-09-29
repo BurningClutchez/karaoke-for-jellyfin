@@ -2,6 +2,7 @@
 
 import { RefObject, useEffect, useRef } from "react";
 import { reportClientError } from "@/lib/clientLog";
+import { playMedia } from "@/lib/audioUnlock";
 
 export const STALL_TIMEOUT_MS = 15000;
 
@@ -57,7 +58,9 @@ export function useAudioRecovery(
       );
       const resume = () => {
         audio.currentTime = position;
-        audio.play().catch(() => {});
+        // A real failure fires "error" and ends up in giveUp; a blocked
+        // autoplay waits for the TV's "turn on sound" prompt
+        playMedia(audio).catch(() => {});
       };
       audio.addEventListener("loadedmetadata", resume, { once: true });
       audio.load();

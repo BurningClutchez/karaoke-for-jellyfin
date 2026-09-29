@@ -1,5 +1,7 @@
 import { PlaybackState } from "@/types";
 import { describeMediaError } from "./useAudioRecovery";
+import { playMedia } from "@/lib/audioUnlock";
+import { handlePlayError } from "./playError";
 
 export interface AudioEventHandlers {
   onTimeUpdate: (currentTime: number) => void;
@@ -66,9 +68,10 @@ export function syncPlaybackState(
   playbackState: PlaybackState,
   isLoading: boolean,
   lastSeekTimeRef: React.MutableRefObject<number>,
-  setError: React.Dispatch<React.SetStateAction<string | null>>
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
+  title?: string
 ): void {
-  syncPlayPause(audio, playbackState, isLoading, setError);
+  syncPlayPause(audio, playbackState, isLoading, setError, title);
   syncMuteAndVolume(audio, playbackState);
   syncSeekPosition(audio, playbackState, lastSeekTimeRef);
   syncPlaybackRate(audio, playbackState);
@@ -78,14 +81,12 @@ export function syncPlayPause(
   audio: HTMLAudioElement,
   playbackState: PlaybackState,
   isLoading: boolean,
-  setError: React.Dispatch<React.SetStateAction<string | null>>
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
+  title?: string
 ): void {
   if (playbackState.isPlaying && audio.paused && !isLoading) {
     if (audio.readyState >= 2) {
-      audio.play().catch(err => {
-        console.error("Play failed:", err);
-        setError(`Play failed: ${err.message}`);
-      });
+      playMedia(audio).catch(err => handlePlayError(err, title, setError));
     }
   } else if (!playbackState.isPlaying && !audio.paused) {
     audio.pause();

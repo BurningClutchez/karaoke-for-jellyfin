@@ -30,6 +30,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# ffmpeg and a font for the optional live channel (LIVE_CHANNEL=true)
+RUN apk add --no-cache ffmpeg font-dejavu
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 

@@ -1,6 +1,7 @@
 // React hook for lyrics functionality
 import { useState, useEffect, useCallback } from "react";
 import { LyricsFile, LyricsSyncState } from "@/types";
+import { reportClientError } from "@/lib/clientLog";
 import {
   UseLyricsOptions,
   UseLyricsReturn,
@@ -8,6 +9,7 @@ import {
   fetchLyricsSync,
   getCurrentLineText,
   getNextLineText,
+  errorText,
 } from "./lyricsHelpers";
 
 export type { UseLyricsOptions, UseLyricsReturn };
@@ -46,6 +48,10 @@ export function useLyrics(options: UseLyricsOptions = {}): UseLyricsReturn {
       }
     } catch (err) {
       console.error("Failed to load lyrics:", err);
+      reportClientError(
+        "warn",
+        `Lyrics failed to load for ${targetSongId}: ${errorText(err)}`
+      );
       setLyricsFile(null);
       setError("Failed to load lyrics");
     } finally {
@@ -64,6 +70,7 @@ export function useLyrics(options: UseLyricsOptions = {}): UseLyricsReturn {
       }
     } catch (err) {
       console.error("Failed to sync lyrics:", err);
+      reportClientError("warn", `Lyrics sync failed: ${errorText(err)}`);
     }
   }, []);
 

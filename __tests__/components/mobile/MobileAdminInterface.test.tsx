@@ -27,6 +27,8 @@ vi.mock("@heroicons/react/24/outline", () => ({
   QueueListIcon: () => <svg data-testid="queue-list-icon" />,
   MusicalNoteIcon: () => <svg data-testid="musical-note-icon" />,
   XMarkIcon: () => <svg data-testid="x-mark-icon" />,
+  ChevronUpIcon: () => <svg data-testid="chevron-up-icon" />,
+  ChevronDownIcon: () => <svg data-testid="chevron-down-icon" />,
 }));
 
 describe("MobileAdminInterface", () => {

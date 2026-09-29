@@ -1,6 +1,7 @@
 import { Socket } from "socket.io-client";
 import { Dispatch, SetStateAction, MutableRefObject } from "react";
 import { ConnectionSetters, ConnectionOptions } from "./handlerTypes";
+import { reportClientError } from "@/lib/clientLog";
 
 function handleReconnectFailed(
   socketInstance: Socket,
@@ -40,6 +41,10 @@ export function setupReconnectHandlers(
 
   socketInstance.on("connect_error", err => {
     console.error("❌ WebSocket connection error:", err);
+    reportClientError(
+      "warn",
+      `Socket connection failed: ${err.message || "unknown error"}`
+    );
     setError("Connection failed: " + (err.message || "Unknown error"));
     setIsConnected(false);
   });
@@ -60,6 +65,7 @@ export function setupReconnectHandlers(
     console.error(
       "❌ WebSocket reconnection failed, creating fresh connection..."
     );
+    reportClientError("error", "Socket reconnection failed; starting over");
     handleReconnectFailed(
       socketInstance,
       userNameRef,

@@ -5,6 +5,15 @@
 
 A web-based karaoke system that integrates with Jellyfin media server to provide karaoke functionality.
 
+**Version 0.2.0** (Karaoke CDG plugin 1.0.1.0). New in this version (every version is in [CHANGES.md](CHANGES.md)):
+
+- **Karaoke Party channel**: the party queue as a Live TV channel in every Jellyfin app ([setup](HOWTO.md#6-the-karaoke-party-channel-optional-either-option))
+- **"Turn on sound" prompt** on the TV when its browser blocks autoplay, and the TV's audio, lyrics and connection errors in the server log
+- **Stuck-TV warning**: a song with no progress on the TV for 60 seconds is reported to the phones, or skipped with `PLAYBACK_STALL_ACTION=skip`
+- **Per-phone limits** on song adds, removals, skips and reactions; `TRUST_PROXY` for reverse proxies
+- **[HOWTO.md](HOWTO.md)**: one setup guide with screenshots, including [only karaoke songs on phones](HOWTO.md#32-create-a-karaoke-only-user) and [Jellyfin, Tailscale and the app on one IP](HOWTO.md#7-example-jellyfin-tailscale-and-the-app-on-one-ip)
+- **Plugin 1.0.1.0**: a zip that can't be read keeps its placeholder, and placeholders lost to that come back
+
 The system has three main interfaces:
 
 1. **Mobile Interface** (`<hostname>/`): Search and queue songs from your phone
@@ -35,13 +44,23 @@ Full-screen karaoke experience with lyrics, performance feedback, and queue mana
 
 ## Features
 
-- Search by artist, playlist or title, and queue songs from any phone
-- Full-screen TV display with synced lyrics, song ratings and a next-up countdown
-- **CD+G karaoke graphics** for `.cdg` files next to your songs, or zipped with them ([setup](docs/CDG.md))
-- **Karaoke channel** in Jellyfin's own apps, via the optional [Jellyfin plugin](jellyfin-plugin/README.md)
-- Installable as a web app (PWA)
+- Search by artist, playlist or title, and queue songs from any phone; songs rotate fairly between singers
+- Full-screen TV display with synced lyrics, song ratings, reactions and a next-up countdown
+- **CD+G karaoke graphics** for `.cdg` files next to your songs, or zipped with them ([how it works](docs/CDG.md))
+- **Karaoke channel** in Jellyfin's own apps, via the optional [Karaoke CDG plugin](jellyfin-plugin/README.md)
+- **Karaoke Party channel**: the whole party as a Live TV channel in every Jellyfin app, instead of a browser on the TV
+- Installable as a web app (PWA), and as an [Android TV app](docs/ANDROID_TV_BUILD.md)
 
-## Quick start (Docker)
+## Setup
+
+**[HOWTO.md](HOWTO.md) is the setup guide**, with screenshots: preparing your songs, the Jellyfin library, user and API key, then either
+
+- **Option A, the app only** (lyrics songs, and CD+G songs from a mounted folder), or
+- **Option B, the app and the Karaoke CDG plugin** (adds zipped songs, the Karaoke channel in Jellyfin's apps and rendered videos),
+
+plus the Karaoke Party channel, an example with Tailscale and macvlan, every setting, updating, and troubleshooting.
+
+The shortest start, for songs with lyrics:
 
 ```yaml
 services:
@@ -50,50 +69,13 @@ services:
     ports:
       - 3967:3000
     environment:
-      - JELLYFIN_SERVER_URL=http://192.168.1.50:8096 # must also work from phones (album art)
-      - JELLYFIN_API_KEY=your-api-key # Dashboard → API Keys
-      - JELLYFIN_USERNAME=your-user
-      # Optional
-      # - JELLYFIN_MUSIC_LIBRARY=Music   # browse only this library
-      # - CDG_MODE=auto                  # auto | canvas | video | off (docs/CDG.md)
-      # - CDG_PRERENDER=false            # don't render videos for queued songs
-      # - SONG_FILTER=karaoke           # karaoke (lyrics or CD+G) | lyrics | all
-      # - LOG_LEVEL=info                 # debug | info | warn | error
-      # - TRUST_PROXY=true               # behind a reverse proxy (per-client limits)
-      # - PLAYBACK_STALL_ACTION=skip     # skip songs the TV gets stuck on (default: notify)
+      - JELLYFIN_SERVER_URL=http://192.168.1.50:8096 # must also work from phones
+      - JELLYFIN_API_KEY=your-api-key # Jellyfin: Dashboard → API Keys
+      - JELLYFIN_USERNAME=karaoke # a user that can only see your karaoke library
     restart: unless-stopped
 ```
 
-Then open:
-
-- `http://<host>:3967/tv` on the TV
-- `http://<host>:3967/` on phones (or scan the QR code on the TV)
-- `http://<host>:3967/admin` for the host
-
-More settings, such as TV timings, are in [`.env.example`](.env.example); playlist filtering is in [`.env.local.example`](.env.local.example). For CD+G graphics, add the [Jellyfin plugin](jellyfin-plugin/README.md) or mount your music folder (see [docs/CDG.md](docs/CDG.md)).
-
-## CD+G graphics in short
-
-- The TV draws `.cdg` graphics itself when it can, and falls back to a video rendered by the Jellyfin plugin, then to lyrics.
-- Phones list songs that have lyrics or CD+G graphics, both badged **Karaoke**. Set `SONG_FILTER=lyrics` to list only songs with lyrics, or `SONG_FILTER=all` to list every song.
-- Queued songs are rendered ahead by default, so the video is ready by the time the song comes up. Set `CDG_PRERENDER=false` to turn this off.
-- To render the **whole library** ahead of time, open **Dashboard → Plugins → Karaoke CDG** in Jellyfin and click **Render karaoke videos**. It first calculates how long this will take and how much space it needs, and asks you to confirm.
-- Rendered videos are cached like extracted zips. A video that isn't played for 30 days is deleted, except the 100 most recently played, and is rendered again when next needed. Both limits can be changed on the plugin's settings page.
-
-## Checking the setup
-
-- `npm run check:jellyfin` (or `docker compose exec karaoke npm run check:jellyfin`) checks that Jellyfin is reachable, the API key works and the user exists.
-- `GET /api/health` reports the app, Jellyfin and plugin status. Add `?strict=1` to get a 503 when Jellyfin has problems.
-- Logs have timestamps and levels, mask API keys, and include errors from the TV and phones' browsers. `LOG_LEVEL=debug` shows every request; `LOG_FORMAT=json` suits log collectors.
-- If a song is playing but the TV reports no progress for 60 seconds (stuck buffering, a hung or sleeping TV, blocked autoplay), the log gets a warning and phones see "The TV seems stuck". `PLAYBACK_STALL_SECONDS` changes the wait (0 turns it off); `PLAYBACK_STALL_ACTION=skip` also skips the song.
-- Each phone can only send so many song adds, removals, skips and reactions a minute; extra ones get a "Too many requests" message and one warning is logged. Behind a reverse proxy, set `TRUST_PROXY=true` so browser error reports are limited per phone instead of per proxy.
-- Works with Jellyfin 12: the app uses the standard `Authorization: MediaBrowser Token` header.
-
-## Troubleshooting
-
-- **Lyrics too early or late:** use the lyrics offset in the admin page.
-- **Old version showing:** use the cache panel in the admin page, visit `/clear-cache`, or force-refresh the browser.
-- **No album art on phones:** `JELLYFIN_SERVER_URL` must be reachable from the phones, not just from the app.
+Then open `http://<host>:3967/tv` on the TV, scan its QR code with your phone, and use `http://<host>:3967/admin` to host.
 
 ## Development
 
@@ -101,15 +83,26 @@ Needs Node.js 20 and a Jellyfin server.
 
 ```bash
 npm install
-cp .env.local.example .env.local   # set the three JELLYFIN_ values
+cp .env.example .env.local   # set the three JELLYFIN_ values
 npm run dev                        # http://localhost:3000
 ```
 
-| Command                   | What it does                  |
-| ------------------------- | ----------------------------- |
-| `npm test`                | Unit tests (Vitest)           |
-| `npm run test:acceptance` | End-to-end tests (Playwright) |
-| `npm run lint:check`      | ESLint                        |
-| `npm run build`           | Production build              |
+Tests, lint and CI: [TESTING.md](TESTING.md). The server (`server.js`) runs Next.js and Socket.IO together; the queue lives in memory there. See [CLAUDE.md](CLAUDE.md) for the code layout.
 
-The server (`server.js`) runs Next.js and Socket.IO together; the queue lives in memory there. See [CLAUDE.md](CLAUDE.md) for the code layout.
+## Documentation
+
+| File                                                                                                                                                                                           | What's in it                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [HOWTO.md](HOWTO.md)                                                                                                                                                                           | The setup guide: the app, the plugin, the Karaoke Party channel, settings, troubleshooting |
+| [CHANGES.md](CHANGES.md)                                                                                                                                                                       | What changed in each version of the app and the plugin                                     |
+| [docs/CDG.md](docs/CDG.md)                                                                                                                                                                     | How CD+G songs are found, decoded and played                                               |
+| [jellyfin-plugin/README.md](jellyfin-plugin/README.md)                                                                                                                                         | The Karaoke CDG plugin: endpoints, settings, the Karaoke channel                           |
+| [docs/ANDROID_TV_BUILD.md](docs/ANDROID_TV_BUILD.md)                                                                                                                                           | Building the Android TV app                                                                |
+| [DOCKER.md](DOCKER.md)                                                                                                                                                                         | The Docker image and building it                                                           |
+| [README-DOCKERHUB.md](README-DOCKERHUB.md)                                                                                                                                                     | The text of the Docker Hub page                                                            |
+| [TESTING.md](TESTING.md)                                                                                                                                                                       | Unit and end-to-end tests, the plugin checks, CI                                           |
+| [WEBSOCKET-EVENT-FLOW.md](WEBSOCKET-EVENT-FLOW.md)                                                                                                                                             | Socket events, the TV's screens and the queue API                                          |
+| [GITHUB-ACTIONS-SETUP.md](GITHUB-ACTIONS-SETUP.md)                                                                                                                                             | The workflows, publishing to Docker Hub, making a release                                  |
+| [CLAUDE.md](CLAUDE.md)                                                                                                                                                                         | Code layout and conventions for contributors and AI coding agents                          |
+| [public/sounds/README.md](public/sounds/README.md)                                                                                                                                             | The applause sounds                                                                        |
+| [.kiro/specs/…/requirements.md](.kiro/specs/self-hosted-karaoke/requirements.md), [design.md](.kiro/specs/self-hosted-karaoke/design.md), [tasks.md](.kiro/specs/self-hosted-karaoke/tasks.md) | The original design spec (July 2025; historical, not kept up to date)                      |
